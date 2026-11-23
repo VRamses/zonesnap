@@ -102,6 +102,9 @@ pub fn default_civ() -> Jogo {
 pub struct Config {
     pub enabled: bool,
     pub show_overlay: bool,
+    /// Tecla que precisa estar apertada para o encaixe ao arrastar valer:
+    /// "ctrl", "shift", "alt" ou "nenhuma".
+    pub tecla: String,
     pub gap: i32,
     pub layout: usize,
     pub layouts: Vec<Layout>,
@@ -131,6 +134,7 @@ pub fn default_config() -> Config {
     Config {
         enabled: true,
         show_overlay: true,
+        tecla: "ctrl".to_string(),
         gap: 8,
         layout: 0,
         jogo_largura: 2300,
@@ -194,6 +198,8 @@ pub const HELP: &str = "Cada zona é uma lista [x, y, largura, altura] em fraç�
 Exemplo: [0, 0, 0.5, 1] é a metade esquerda inteira; [0.5, 0, 0.5, 1] é a metade direita. \
 Na tela 3440x1440, cada metade fica com 1720 px; em outra resolução a proporção é a mesma. \
 gap é o espaço em pixels entre as janelas (8 = 4 px de respiro em cada lado). \
+tecla é a tecla que precisa estar apertada enquanto você arrasta a janela para o encaixe valer: \
+ctrl, shift, alt ou nenhuma (nenhuma = encaixa em qualquer arrasto). \
 layout é o índice do layout inicial (0 = primeiro da lista). \
 Edite e salve: o app recarrega sozinho em até 2 segundos, sem reiniciar. \
 Para voltar ao padrão, apague este arquivo e abra o app de novo.";
@@ -206,12 +212,25 @@ vigiar reaplica a zona quando o jogo tenta se mexer. borda mantém a barra de t�
 alinhar_cliente prende pela área cliente, sem mexer no estilo: é o modo do Civ V, que mede o cursor pelo cliente. \
 preparar aceita \"civ5\", que ajusta o GraphicsSettingsDX11.ini com o jogo fechado (com backup).";
 
+/// Aceita o nome da tecla em português, inglês e com espaço sobrando, e devolve
+/// sempre um dos quatro valores que o programa entende.
+pub fn normalizar_tecla(t: &str) -> String {
+    match t.trim().to_lowercase().as_str() {
+        "ctrl" | "control" | "controle" => "ctrl".to_string(),
+        "shift" => "shift".to_string(),
+        "alt" => "alt".to_string(),
+        "nenhuma" | "nenhum" | "none" | "sem" | "sempre" => "nenhuma".to_string(),
+        _ => "ctrl".to_string(),
+    }
+}
+
 impl Config {
     pub fn sanitize(&mut self) {
         if self.layouts.is_empty() {
             *self = default_config();
             return;
         }
+        self.tecla = normalizar_tecla(&self.tecla);
         if self.layout >= self.layouts.len() {
             self.layout = 0;
         }
@@ -275,13 +294,23 @@ pub fn load_or_create(path: &Path) -> (Config, Option<SystemTime>) {
     };
     match serde_json::from_str::<Config>(&text) {
         Ok(mut cfg) => {
+            // Arquivo de versão anterior: completa o que falta e grava, para a
+            // próxima edição a mão já mostrar a chave nova.
+            let mut completou = false;
+            if !text.contains("\"tecla\"") {
+                cfg.tecla = "ctrl".to_string();
+                completou = true;
+            }
             if !text.contains("\"jogos\"") {
                 cfg.jogos = vec![default_civ()];
                 cfg.jogo_largura = 2300;
-                let _ = save(path, &cfg);
-                crate::log("config: perfil do Civ V adicionado ao arquivo antigo");
+                completou = true;
             }
             cfg.sanitize();
+            if completou {
+                let _ = save(path, &cfg);
+                crate::log("config: chaves novas gravadas no arquivo antigo");
+            }
             let mt = fs::metadata(path).ok().and_then(|m| m.modified().ok());
             (cfg, mt)
         }
@@ -338,6 +367,7 @@ fn write_default(path: &Path, cfg: &Config) {    if let Some(dir) = path.parent(
     out.push_str(&format!("  \"_ajuda\": {},\n", q(HELP)));
     out.push_str(&format!("  \"enabled\": {},\n", cfg.enabled));
     out.push_str(&format!("  \"show_overlay\": {},\n", cfg.show_overlay));
+    out.push_str(&format!("  \"tecla\": {},\n", q(&cfg.tecla)));
     out.push_str(&format!("  \"gap\": {},\n", cfg.gap));
     out.push_str(&format!("  \"layout\": {},\n", cfg.layout));
     out.push_str("  \"layouts\": [\n");

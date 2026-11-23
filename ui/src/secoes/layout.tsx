@@ -11,6 +11,13 @@ type Props = {
   mexer: (alteracao: (c: Config) => Config) => void;
 };
 
+const TECLAS = [
+  { valor: "ctrl", rotulo: "Ctrl" },
+  { valor: "shift", rotulo: "Shift" },
+  { valor: "alt", rotulo: "Alt" },
+  { valor: "nenhuma", rotulo: "Sem tecla" },
+];
+
 export function SecaoLayout({ cfg, estado, mexer }: Props) {
   const largura = estado?.monitor.largura ?? 3440;
   const altura = estado?.monitor.altura ?? 1440;
@@ -87,7 +94,8 @@ export function SecaoLayout({ cfg, estado, mexer }: Props) {
           </p>
         </section>
 
-        <section className="zs-painel flex items-center px-4 py-3">
+        <section className="zs-painel px-4 pt-3 pb-3">
+          <h2 className="zs-rotulo">Arrastar</h2>
           <Chave
             id="previa-arrastar"
             rotulo="Prévia ao arrastar"
@@ -95,6 +103,36 @@ export function SecaoLayout({ cfg, estado, mexer }: Props) {
             valor={cfg.show_overlay}
             aoMudar={(v) => mexer((c) => ({ ...c, show_overlay: v }))}
           />
+          <div className="mt-1 border-t border-[var(--zs-line)] pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[13px] text-[var(--zs-ink)]">
+                Tecla para encaixar
+              </span>
+              <div
+                className="flex flex-wrap gap-1.5"
+                role="group"
+                aria-label="Tecla para encaixar"
+              >
+                {TECLAS.map((t) => (
+                  <button
+                    key={t.valor}
+                    type="button"
+                    className="zs-opcao"
+                    data-ativo={cfg.tecla === t.valor}
+                    aria-pressed={cfg.tecla === t.valor}
+                    onClick={() => mexer((c) => ({ ...c, tecla: t.valor }))}
+                  >
+                    {t.rotulo}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] leading-snug text-[var(--zs-dim)]">
+              Com a tecla apertada, as zonas aparecem e a janela encaixa ao
+              soltar. Sem ela, a janela fica exatamente onde você soltou. Em Sem
+              tecla, o encaixe vale em qualquer arrasto.
+            </p>
+          </div>
         </section>
       </div>
     </div>

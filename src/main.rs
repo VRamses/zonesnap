@@ -29,7 +29,8 @@ use windows_sys::Win32::System::Threading::CreateMutexW;
 use windows_sys::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
 use windows_sys::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    RegisterHotKey, MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN,
+    GetAsyncKeyState, RegisterHotKey, MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, VK_CONTROL,
+    VK_MENU, VK_SHIFT,
 };
 use windows_sys::Win32::UI::Shell::{
     Shell_NotifyIconW, ShellExecuteW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE,
@@ -241,6 +242,23 @@ unsafe fn snap_window(hwnd: isize, mon: &MonGeom, zones: &[Zone], idx: usize, ga
     ok
 }
 
+/// Estado da tecla agora, mesmo com a janela do ZoneSnap em segundo plano.
+/// `GetAsyncKeyState` devolve o bit alto ligado enquanto a tecla está apertada.
+fn tecla_apertada(tecla: &str) -> bool {
+    let vk = match tecla {
+        "shift" => VK_SHIFT,
+        "alt" => VK_MENU,
+        _ => VK_CONTROL,
+    };
+    unsafe { (GetAsyncKeyState(vk as i32) as u16) & 0x8000 != 0 }
+}
+
+/// O encaixe ao arrastar só vale com a tecla da configuração apertada; "nenhuma"
+/// mantém o comportamento antigo, de encaixar em qualquer arrasto.
+fn encaixe_liberado(cfg: &Config) -> bool {
+    cfg.tecla == "nenhuma" || tecla_apertada(&cfg.tecla)
+}
+
 fn on_drag_start(hwnd: isize) {
     let mut st = state();
     if !st.enabled || hwnd == 0 || hwnd == st.overlay.hwnd() || ignorable(hwnd) {
@@ -254,33 +272,50 @@ fn on_drag_start(hwnd: isize) {
     st.mon = Some(mon);
     st.hover = None;
     st.visible = false;
-    if st.cfg.show_overlay && !zones.is_empty() {
+    if !st.cfg.show_overlay || zones.is_empty() {
+        return;
+    }
+    // O tique fica de plantão mesmo sem a tecla apertada: ela pode ser apertada
+    // no meio do arrasto, e aí as zonas aparecem.
+    unsafe {
+        SetTimer(main_hwnd(), TIMER_HOVER, 25, None);
+    }
+    if encaixe_liberado(&st.cfg) {
         st.visible = st.overlay.show(&mon, &zones, None, gap);
-        if st.visible {
-            unsafe {
-                SetTimer(main_hwnd(), TIMER_HOVER, 25, None);
-            }
-        }
     }
 }
 
 fn on_tick() {
     let mut st = state();
-    if st.drag == 0 || !st.visible {
+    if st.drag == 0 {
+        return;
+    }
+    if !encaixe_liberado(&st.cfg) {
+        if st.visible {
+            st.overlay.hide();
+            st.visible = false;
+            st.hover = None;
+        }
         return;
     }
     let pt = cursor_pos();
     let mon = monitor_at(pt);
     let zones = zones_of(&st.cfg, st.layout);
     let gap = st.cfg.gap;
+    if zones.is_empty() {
+        return;
+    }
     let trocou = match st.mon {
         Some(m) => m.rect.left != mon.rect.left || m.rect.top != mon.rect.top,
         None => true,
     };
-    if trocou {
+    if trocou || !st.visible {
         st.mon = Some(mon);
         st.hover = None;
         st.visible = st.overlay.show(&mon, &zones, None, gap);
+        if !st.visible {
+            return;
+        }
     }
     let hv = hit_zone(&mon, &zones, gap, pt);
     if hv != st.hover {
@@ -302,7 +337,7 @@ fn on_drag_end() {
     }
     st.hover = None;
     st.mon = None;
-    if drag == 0 || !st.enabled {
+    if drag == 0 || !st.enabled || !encaixe_liberado(&st.cfg) {
         return;
     }
     let pt = cursor_pos();
@@ -1153,6 +1188,7 @@ pub fn estado_json() -> serde_json::Value {
         "pausado": st.jogos.pausado,
         "gap": st.cfg.gap,
         "mostrar_previa": st.cfg.show_overlay,
+        "tecla": st.cfg.tecla,
         "layout": st.layout,
         "layout_nome": layout_nome,
         "layouts": layouts,

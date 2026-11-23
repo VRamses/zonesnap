@@ -28,6 +28,7 @@ export type Config = {
   layout: number;
   gap: number;
   show_overlay: boolean;
+  tecla: string;
   jogo_largura: number;
   jogos: Jogo[];
 };
@@ -58,6 +59,7 @@ export type Estado = {
   pausado: boolean;
   gap: number;
   mostrar_previa: boolean;
+  tecla: string;
   layout: number;
   layout_nome: string;
   layouts: Layout[];

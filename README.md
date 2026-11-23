@@ -16,9 +16,14 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
 - **Zonas por layout**: sete layouts prontos pensados para 3440 x 1440, com
   frações de 0 a 1 da área útil do monitor. Você troca de layout pelo menu do
   ícone, pela interface ou por atalho.
-- **Prévia ao arrastar**: enquanto você arrasta uma janela, o ZoneSnap desenha as
-  zonas sobre a tela e destaca a zona sob o cursor. É a barra que o Easy Setting
-  Box mostrava, só que desenhada pelo próprio programa.
+- **Prévia ao arrastar**: enquanto você arrasta uma janela com a tecla do
+  encaixe apertada, o ZoneSnap desenha as zonas sobre a tela e destaca a zona sob
+  o cursor. É a barra que o Easy Setting Box mostrava, só que desenhada pelo
+  próprio programa.
+- **Encaixe só com a tecla apertada**: segurando `Ctrl` durante o arrasto, as
+  zonas aparecem e a janela encaixa ao soltar. Soltando sem a tecla, a janela
+  fica exatamente onde você soltou. A tecla é escolhida na seção Layout (Ctrl,
+  Shift, Alt ou `Sem tecla`, que volta a encaixar em qualquer arrasto).
 - **Prévia avulsa**: `zonesnap.exe --preview` (ou `--preview --seconds 6`) mostra
   as zonas sem precisar arrastar nada.
 - **Encaixe por atalho**: `Win+Alt+Shift+1` a `Win+Alt+Shift+9` manda a janela em
@@ -48,8 +53,9 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
 1. Baixe `zonesnap.exe` (ou compile, veja o fim deste arquivo).
 2. Rode. Ele fica no ícone ao lado do relógio.
 3. Clique no ícone para abrir o menu (clique esquerdo também abre).
-4. Arraste a janela para uma zona e ela encaixa; `Win+Alt+Shift+1` a `9` encaixa
-   direto.
+4. Arraste a janela segurando `Ctrl`: as zonas aparecem e a janela encaixa na
+   zona sob o cursor ao soltar. Sem a tecla, ela fica onde você soltou.
+   `Win+Alt+Shift+1` a `9` encaixa direto, sem arrastar.
 
 Não precisa instalar, não pede administrador e não escreve nada fora de
 `%APPDATA%\ZoneSnap` e da pasta que você mandar ele abrir.
@@ -115,7 +121,8 @@ A página tem quatro seções, escolhidas na coluna da esquerda:
 
 - **Layout**: a planta do monitor em escala, com a régua em pixels no topo e cada
   zona escrita com o tamanho que vai receber. Abaixo ficam os sete layouts em
-  miniatura, com o nome embaixo de cada um, e o espaço entre zonas.
+  miniatura, com o nome embaixo de cada um, o espaço entre zonas e o painel
+  `Arrastar`, com a prévia e a tecla que libera o encaixe.
 - **Jogos**: um cartão por perfil, com tamanho, posição, os três interruptores,
   `Prender agora`, `Soltar`, `Remover` e o aviso do `.ini` do jogo, com o botão
   `Corrigir o .ini`. No fim da seção fica o painel do modo vídeo, com o atalho e o
@@ -147,6 +154,7 @@ Editar com o programa aberto funciona: ele relê o arquivo a cada 2 segundos.
   "layout": 0,
   "gap": 8,
   "show_overlay": true,
+  "tecla": "ctrl",
   "jogo_largura": 2300,
   "layouts": [
     {
@@ -180,6 +188,12 @@ Editar com o programa aberto funciona: ele relê o arquivo a cada 2 segundos.
   avançando, a borda cai sobre o conteúdo da vizinha em vez de virar uma linha
   colorida entre as duas janelas.
 - `layout`: índice do layout em uso.
+- `tecla`: tecla que libera o encaixe ao arrastar, entre `ctrl`, `shift`, `alt` e
+  `nenhuma`. Ela é lida no momento em que você solta a janela, então apertar no
+  meio do arrasto vale, e soltar antes de soltar a janela cancela o encaixe.
+  `nenhuma` volta ao comportamento antigo, de encaixar em qualquer arrasto. Também
+  aceita `control` e `controle` para `ctrl`, `none` e `sempre` para `nenhuma`.
+- `show_overlay`: desenha as zonas na tela durante o arrasto.
 - `jogo_largura`: largura padrão da faixa do jogo quando o perfil não define uma.
 - `processo`: nome do executável, como aparece no Gerenciador de Tarefas.
 - `vigiar`: reencaixa a janela quando ela sai do lugar.
@@ -327,6 +341,7 @@ o nome traduzido (`Documentos`).
 | | ZoneSnap | FancyZones |
 |---|---|---|
 | Zonas por layout | sim, em JSON | sim, no editor |
+| Encaixe ao arrastar | com a tecla apertada, `Ctrl` por padrão | com a tecla apertada, `Shift` por padrão |
 | Encaixe por atalho numerado | sim | sim |
 | Prender jogo num tamanho fixo com vigilância | sim | não |
 | Encaixe pelo cliente da janela (Civ V) | sim | não |
