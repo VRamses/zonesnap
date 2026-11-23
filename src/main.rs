@@ -624,6 +624,9 @@ unsafe fn tray_menu(hwnd: HWND) {
             tray_update(hwnd, &st);
         }
         4 => {
+            let mut st = state();
+            let n = st.jogos.soltar_todas();
+            log(&format!("saindo: soltou {n} janela(s)"));
             tray_remove(hwnd);
             DestroyWindow(hwnd);
         }
@@ -707,6 +710,12 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             0
         }
         WM_DESTROY => {
+            // saindo por qualquer caminho (Sair, encerrar sessao, taskkill amigavel):
+            // devolve as janelas presas ao estilo e ao retangulo originais.
+            let n = state().jogos.soltar_todas();
+            if n > 0 {
+                log(&format!("encerrando: soltou {n} janela(s)"));
+            }
             tray_remove(hwnd);
             PostQuitMessage(0);
             0
