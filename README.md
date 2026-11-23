@@ -250,4 +250,5 @@ O resultado é `target\release\zonesnap.exe`, um arquivo só, de cerca de 1 MB.
 ## Licença
 
 MIT. Os componentes de interface vieram do [shadcn/ui](https://github.com/shadcn-ui/ui),
-também MIT, e mantêm o aviso de copyright nos arquivos.
+também MIT, e mantêm o aviso de copyright nos arquivos. A lista completa de
+componentes de terceiros e suas licenças está em [THIRD-PARTY.md](THIRD-PARTY.md).
