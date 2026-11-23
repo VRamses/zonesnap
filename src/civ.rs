@@ -38,7 +38,7 @@ pub fn ini_path() -> Option<PathBuf> {
     Some(pasta_jogo()?.join("GraphicsSettingsDX11.ini"))
 }
 
-fn processo_aberto() -> bool {
+pub fn processo_aberto() -> bool {
     crate::jogos::maior_janela("civilizationv_dx11.exe").is_some()
         || crate::jogos::maior_janela("civilizationv.exe").is_some()
 }
@@ -132,4 +132,116 @@ pub fn preparar(largura: i32, altura: i32) -> Result<String, String> {
         "Civ V em janela: FullScreen=0, WindowResX={largura}, WindowResY={altura}. Backup em {}.",
         backup.display()
     ))
+}
+
+/// O que o jogo gravou no ini. Campo `None` quer dizer que a chave não está lá.
+#[derive(Clone, Debug, Default)]
+pub struct IniEstado {
+    pub caminho: Option<PathBuf>,
+    pub existe: bool,
+    pub fullscreen: Option<i32>,
+    pub largura: Option<i32>,
+    pub altura: Option<i32>,
+    pub jogo_aberto: bool,
+}
+
+impl IniEstado {
+    /// O jogo vai nascer com o cliente diferente da zona, ou fora do modo janela?
+    /// Arquivo que ainda não existe não conta como divergência: é outro aviso.
+    pub fn divergente(&self, alvo_largura: i32, alvo_altura: i32) -> bool {
+        if !self.existe {
+            return false;
+        }
+        self.fullscreen != Some(0)
+            || self.largura != Some(alvo_largura)
+            || self.altura != Some(alvo_altura)
+    }
+
+    /// Dá para corrigir sem brigar com o jogo aberto?
+    pub fn pode_corrigir(&self, alvo_largura: i32, alvo_altura: i32) -> bool {
+        self.existe && !self.jogo_aberto && self.divergente(alvo_largura, alvo_altura)
+    }
+
+    /// Uma frase para a interface, o log e a caixa de aviso.
+    pub fn frase(&self, alvo_largura: i32, alvo_altura: i32) -> String {
+        if self.caminho.is_none() {
+            return "não achei a pasta Documentos, então não sei onde fica o ini do Civ V".to_string();
+        }
+        if !self.existe {
+            return "o ini do Civ V ainda não existe: abra o jogo uma vez em modo janela para ele criar o arquivo".to_string();
+        }
+        let atual = format!("{}x{}", numero(self.largura), numero(self.altura));
+        let alvo = format!("{alvo_largura}x{alvo_altura}");
+        if !self.divergente(alvo_largura, alvo_altura) {
+            return format!(
+                "ini em {atual}, em janela, igual ao perfil: o jogo nasce no tamanho da zona"
+            );
+        }
+        let tela = match self.fullscreen {
+            Some(0) => String::new(),
+            Some(n) => format!(" com FullScreen={n}"),
+            None => " sem a chave FullScreen".to_string(),
+        };
+        let correcao = if self.jogo_aberto {
+            "Com o jogo aberto não dá para corrigir: ele regrava o arquivo ao sair."
+        } else {
+            "Com o jogo fechado a correção é imediata."
+        };
+        format!("ini em {atual}{tela}, mas o perfil pede {alvo}. {correcao}")
+    }
+}
+
+fn numero(v: Option<i32>) -> String {
+    v.map(|n| n.to_string()).unwrap_or_else(|| "?".to_string())
+}
+
+/// Lê o ini na hora: é isso que descobre se o jogo vai nascer torto.
+pub fn ler() -> IniEstado {
+    let caminho = ini_path();
+    let mut e = IniEstado {
+        caminho: caminho.clone(),
+        jogo_aberto: processo_aberto(),
+        ..Default::default()
+    };
+    let Some(p) = caminho else {
+        return e;
+    };
+    if !p.exists() {
+        return e;
+    }
+    e.existe = true;
+    let Ok(texto) = fs::read_to_string(&p) else {
+        return e;
+    };
+    for linha in texto.lines() {
+        if let Some(v) = valor_da_linha(linha, "FullScreen") {
+            e.fullscreen = v.parse().ok();
+        }
+        if let Some(v) = valor_da_linha(linha, "WindowResX") {
+            e.largura = v.parse().ok();
+        }
+        if let Some(v) = valor_da_linha(linha, "WindowResY") {
+            e.altura = v.parse().ok();
+        }
+    }
+    e
+}
+
+/// O ini em JSON, para a interface e para o log.
+pub fn resumo_json(alvo_largura: i32, alvo_altura: i32) -> serde_json::Value {
+    let e = ler();
+    let divergente = e.divergente(alvo_largura, alvo_altura);
+    serde_json::json!({
+        "caminho": e.caminho.as_ref().map(|p| p.display().to_string()),
+        "existe": e.existe,
+        "jogo_aberto": e.jogo_aberto,
+        "fullscreen": e.fullscreen,
+        "largura": e.largura,
+        "altura": e.altura,
+        "alvo_largura": alvo_largura,
+        "alvo_altura": alvo_altura,
+        "divergente": divergente,
+        "pode_corrigir": e.pode_corrigir(alvo_largura, alvo_altura),
+        "frase": e.frase(alvo_largura, alvo_altura),
+    })
 }

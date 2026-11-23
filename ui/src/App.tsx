@@ -9,6 +9,7 @@ import {
   salvarConfig,
   type Config,
   type Estado,
+  type Ini,
   type Jogo,
 } from "./lib/api";
 
@@ -166,6 +167,7 @@ function CartaoJogo({
   jogo,
   aberto,
   preso,
+  ini,
   aoMudar,
   aoRemover,
   aoPrender,
@@ -176,6 +178,7 @@ function CartaoJogo({
   jogo: Jogo;
   aberto: boolean;
   preso: boolean;
+  ini?: Ini | null;
   aoMudar: (j: Jogo) => void;
   aoRemover: () => void;
   aoPrender: () => void;
@@ -249,7 +252,7 @@ function CartaoJogo({
         <Button size="sm" variant="outline" onClick={aoSoltar}>
           Soltar
         </Button>
-        {jogo.preparar === "civ5" && (
+        {jogo.preparar === "civ5" && !ini && (
           <Button size="sm" variant="secondary" onClick={aoPreparar}>
             Ajustar o .ini do Civ V
           </Button>
@@ -263,6 +266,46 @@ function CartaoJogo({
           Remover
         </Button>
       </div>
+
+      {ini && (
+        <div
+          className="rounded-md border px-3 py-2 text-[12px] leading-snug"
+          style={{
+            borderColor: ini.divergente ? "var(--zs-alerta)" : "var(--zs-line)",
+            background: "var(--zs-bg)",
+            color: ini.divergente ? "var(--zs-ink)" : "var(--zs-dim)",
+          }}
+        >
+          <p className="flex items-start gap-2">
+            <span
+              aria-hidden="true"
+              className="mt-[5px] inline-block size-[7px] shrink-0 rounded-full"
+              style={{ background: ini.divergente ? "var(--zs-alerta)" : "var(--zs-ok)" }}
+            />
+            <span>
+              <span className="zs-rotulo mr-2">.ini do jogo</span>
+              {ini.frase}
+            </span>
+          </p>
+          {ini.divergente && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={aoPreparar}
+                disabled={!ini.pode_corrigir}
+              >
+                {ini.jogo_aberto ? "Feche o jogo para corrigir" : "Corrigir o .ini agora"}
+              </Button>
+              {ini.caminho && (
+                <span className="min-w-0 truncate font-mono text-[11px] text-[var(--zs-dim)]">
+                  {ini.caminho}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {mensagem && (
         <p className="rounded-md border border-[var(--zs-line-forte)] bg-[var(--zs-bg)] px-3 py-2 text-[12px] text-[var(--zs-ink)]">
@@ -553,6 +596,7 @@ export default function App() {
                   jogo={jogo}
                   aberto={e?.aberto ?? false}
                   preso={e?.preso ?? false}
+                  ini={e?.ini ?? null}
                   mensagem={recados[jogo.processo]}
                   aoMudar={(j) => mexerJogo(i, j)}
                   aoRemover={() => mexer((c) => ({ ...c, jogos: c.jogos.filter((_, k) => k !== i) }))}

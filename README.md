@@ -171,6 +171,37 @@ A receita que funciona tem três partes, e o ZoneSnap faz as três:
 zonesnap.exe --preparar-civ
 ```
 
+### A conferência do `.ini`
+
+O `.ini` é a única peça dessa receita que mora fora do ZoneSnap, então ele é
+vigiado. A cada 10 segundos, e de novo a cada atualização da interface, o
+programa lê o `GraphicsSettingsDX11.ini`, compara `FullScreen`, `WindowResX` e
+`WindowResY` com a largura e a altura do perfil e escreve no registro uma linha
+por mudança de conclusão:
+
+```
+ini de Civilization V (DX11): ini em 2347x1440, mas o perfil pede 2300x1440.
+Com o jogo aberto não dá para corrigir: ele regrava o arquivo ao sair.
+```
+
+No cartão do jogo a mesma frase aparece em três estados: ponto verde e texto
+apagado quando o `.ini` combina com o perfil, ponto âmbar com a frase do
+problema quando diverge, e nada quando o arquivo ainda não existe (o jogo não
+foi aberto nenhuma vez). Corrigir tem um botão, `Corrigir o .ini agora`, que só
+habilita com o jogo fechado; com ele aberto o botão fica apagado e diz
+`Feche o jogo para corrigir`. A mesma conferência está no menu do ícone, em
+`Jogos` > `Conferir o .ini do Civ V`, com o resultado numa caixa de aviso.
+
+Pelo terminal, sem abrir a interface e sem tocar no arquivo:
+
+```
+zonesnap.exe --checar-ini
+ini existe=true jogo_aberto=false fullscreen=0 janela=2300x1440 alvo=2300x1440 divergente=false pode_corrigir=false
+```
+
+O comando não sobe o programa nem briga com a instância que já está rodando,
+então serve para diagnosticar com o jogo aberto.
+
 Fluxo completo, do zero:
 
 1. Feche o Civilization V.

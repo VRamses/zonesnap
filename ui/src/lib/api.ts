@@ -32,7 +32,21 @@ export type Config = {
   jogos: Jogo[];
 };
 
-export type JogoEstado = Jogo & { preso: boolean; aberto: boolean };
+export type Ini = {
+  caminho: string | null;
+  existe: boolean;
+  jogo_aberto: boolean;
+  fullscreen: number | null;
+  largura: number | null;
+  altura: number | null;
+  alvo_largura: number;
+  alvo_altura: number;
+  divergente: boolean;
+  pode_corrigir: boolean;
+  frase: string;
+};
+
+export type JogoEstado = Jogo & { preso: boolean; aberto: boolean; ini?: Ini | null };
 
 export type Estado = {
   versao: string;

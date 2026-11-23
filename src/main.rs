@@ -10,7 +10,7 @@ use config::{Config, Zone};
 use overlay::{hit_zone, zone_rect, MonGeom, Overlay};
 use std::io::Write as _;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicIsize, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, SystemTime};
 
@@ -61,6 +61,8 @@ struct AppState {
     visible: bool,
     overlay: Overlay,
     jogos: jogos::Jogos,
+    /// Última conclusão sobre o ini do jogo, para o log não repetir a mesma frase.
+    ini_visto: String,
 }
 
 pub fn log(msg: &str) {
@@ -584,6 +586,16 @@ unsafe fn tray_menu(hwnd: HWND) {
         AppendMenuW(subj, f, 6, pausar.as_ptr());
         let todas = wide("Soltar todas as janelas presas");
         AppendMenuW(subj, MF_STRING, 7, todas.as_ptr());
+        if st
+            .cfg
+            .jogos
+            .iter()
+            .any(|j| j.preparar.eq_ignore_ascii_case("civ5"))
+        {
+            AppendMenuW(subj, MF_SEPARATOR, 0, std::ptr::null());
+            let ini = wide("Conferir o .ini do Civ V");
+            AppendMenuW(subj, MF_STRING, 8, ini.as_ptr());
+        }
         let jlabel = wide("Jogos");
         AppendMenuW(menu, MF_POPUP, subj as usize, jlabel.as_ptr());
     }
@@ -655,6 +667,16 @@ unsafe fn tray_menu(hwnd: HWND) {
             log(&format!("jogos: soltou {n} janela(s)"));
             tray_update(hwnd, &st);
         }
+        8 => match executar_acao("preparar_civ", None) {
+            Ok(m) => {
+                log(&format!("menu ini: {m}"));
+                aviso(&m);
+            }
+            Err(e) => {
+                log(&format!("menu ini: {e}"));
+                aviso(&e);
+            }
+        },
         300..=399 => {
             let idx = (cmd - 300) as usize;
             let proc = {
@@ -687,6 +709,7 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                 on_tick();
             } else if wparam == TIMER_CFG {
                 reload_if_changed();
+                vigiar_ini();
             } else if wparam == TIMER_VIGIA {
                 vigiar_jogos();
             } else if wparam == TIMER_PREVIA {
@@ -880,6 +903,45 @@ fn vigiar_jogos() {
     }
 }
 
+/// Confere o ini do jogo a cada cinco passadas do timer de configuração
+/// (10 segundos) e só escreve no log quando a conclusão muda, para não
+/// transformar o arquivo num eco.
+static INI_TICK: AtomicUsize = AtomicUsize::new(0);
+
+fn vigiar_ini() {
+    let volta = INI_TICK.fetch_add(1, Ordering::Relaxed) + 1;
+    if volta % 5 != 0 {
+        return;
+    }
+    let alvo = {
+        let st = state();
+        st.cfg
+            .jogos
+            .iter()
+            .find(|j| j.preparar.eq_ignore_ascii_case("civ5"))
+            .map(|j| (j.largura, j.altura, j.nome.clone()))
+    };
+    let Some((largura, altura, nome)) = alvo else {
+        return;
+    };
+    let e = civ::ler();
+    let assinatura = format!(
+        "{}|{}|{}|{}|{}",
+        e.existe,
+        e.jogo_aberto,
+        e.fullscreen.map(|v| v.to_string()).unwrap_or_default(),
+        e.largura.map(|v| v.to_string()).unwrap_or_default(),
+        e.altura.map(|v| v.to_string()).unwrap_or_default()
+    );
+    let mut st = state();
+    if st.ini_visto == assinatura {
+        return;
+    }
+    let frase = e.frase(largura, altura);
+    log(&format!("ini de {nome}: {frase}"));
+    st.ini_visto = assinatura;
+}
+
 fn mostrar_previa() {
     let mut st = state();
     let pt = cursor_pos();
@@ -927,7 +989,7 @@ pub fn estado_json() -> serde_json::Value {
         .jogos
         .iter()
         .map(|j| {
-            serde_json::json!({
+            let mut v = serde_json::json!({
                 "processo": j.processo,
                 "nome": j.nome,
                 "largura": j.largura,
@@ -940,7 +1002,14 @@ pub fn estado_json() -> serde_json::Value {
                 "preparar": j.preparar,
                 "preso": st.jogos.presos_processo(&j.processo) > 0,
                 "aberto": jogos::maior_janela(&j.processo).is_some(),
-            })
+            });
+            // O ini do jogo diz, na hora, se ele vai nascer no tamanho da zona.
+            if j.preparar.eq_ignore_ascii_case("civ5") {
+                if let Some(obj) = v.as_object_mut() {
+                    obj.insert("ini".to_string(), civ::resumo_json(j.largura, j.altura));
+                }
+            }
+            v
         })
         .collect();
     let (largura_mon, altura_mon) = unsafe {
@@ -1127,6 +1196,42 @@ fn main() {
         return;
     }
 
+    // Diagnóstico do ini sem subir o app nem tocar no arquivo.
+    if args.iter().any(|a| a == "--checar-ini") {
+        let (cfg, _) = config::load_or_create(&config::default_config_path());
+        let j = cfg
+            .jogos
+            .iter()
+            .find(|j| j.preparar.eq_ignore_ascii_case("civ5"))
+            .cloned();
+        let largura = j
+            .as_ref()
+            .map(|j| j.largura)
+            .filter(|v| *v > 0)
+            .unwrap_or(cfg.jogo_largura);
+        let altura = j
+            .as_ref()
+            .map(|j| j.altura)
+            .filter(|v| *v > 0)
+            .unwrap_or_else(|| unsafe { GetSystemMetrics(SM_CYSCREEN) });
+        let e = civ::ler();
+        let num = |v: Option<i32>| v.map(|n| n.to_string()).unwrap_or_else(|| "?".to_string());
+        log(&format!("checar-ini: {}", e.frase(largura, altura)));
+        println!(
+            "ini existe={} jogo_aberto={} fullscreen={} janela={}x{} alvo={}x{} divergente={} pode_corrigir={}",
+            e.existe,
+            e.jogo_aberto,
+            num(e.fullscreen),
+            num(e.largura),
+            num(e.altura),
+            largura,
+            altura,
+            e.divergente(largura, altura),
+            e.pode_corrigir(largura, altura)
+        );
+        return;
+    }
+
     unsafe {
         let nome = wide(MUTEX_NAME);
         let mtx = CreateMutexW(std::ptr::null(), 1, nome.as_ptr());
@@ -1164,6 +1269,7 @@ fn main() {
             visible: false,
             overlay,
             jogos: jogos::Jogos::new(),
+            ini_visto: String::new(),
         }));
 
         let class = wide(CLASS_MAIN);
