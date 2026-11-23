@@ -3,6 +3,7 @@
 mod civ;
 mod config;
 mod httpd;
+mod janela;
 mod jogos;
 mod overlay;
 
@@ -21,6 +22,7 @@ use windows_sys::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FR
 use windows_sys::Win32::Graphics::Gdi::{
     GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST,
 };
+use windows_sys::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::CreateMutexW;
 use windows_sys::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
@@ -39,6 +41,7 @@ const MUTEX_NAME: &str = "ZoneSnap.InstanciaUnica";
 const WM_DRAG_START: u32 = WM_APP + 1;
 const WM_DRAG_END: u32 = WM_APP + 2;
 const WM_TRAY: u32 = WM_APP + 3;
+const WM_ABRIR: u32 = WM_APP + 5;
 const TIMER_HOVER: usize = 1;
 const TIMER_CFG: usize = 2;
 const TIMER_VIGIA: usize = 3;
@@ -391,6 +394,44 @@ unsafe fn open_config(path: &PathBuf) {
     );
 }
 
+/// Abre a interface na janela própria do programa. Se o WebView2 não estiver
+/// disponível, cai no navegador para não deixar ninguém sem interface.
+fn abrir_interface() {
+    let Some(url) = httpd::endereco() else {
+        log("interface: endereço não encontrado");
+        return;
+    };
+    match janela::abrir(&url) {
+        Ok(()) => log(&format!("interface na janela do programa em {url}")),
+        Err(e) => {
+            log(&format!("janela do programa: {e}; abrindo no navegador"));
+            httpd::abrir();
+        }
+    }
+}
+
+/// Pede à instância que já está rodando para mostrar a janela da interface.
+/// Usado quando um atalho com `--ui` é disparado com o programa já aberto.
+unsafe fn pedir_interface() {
+    unsafe extern "system" fn procurar(hwnd: HWND, l: LPARAM) -> BOOL {
+        let mut buf = [0u16; 64];
+        let n = GetClassNameW(hwnd, buf.as_mut_ptr(), buf.len() as i32);
+        if n > 0 {
+            let nome = String::from_utf16_lossy(&buf[..n as usize]);
+            if nome == CLASS_MAIN {
+                *(l as *mut HWND) = hwnd;
+                return 0;
+            }
+        }
+        1
+    }
+    let mut achado: HWND = std::ptr::null_mut();
+    EnumWindows(Some(procurar), &mut achado as *mut HWND as LPARAM);
+    if !achado.is_null() {
+        PostMessageW(achado, WM_ABRIR, 0, 0);
+    }
+}
+
 fn reload_config(st: &mut AppState) {
     let (cfg, mt) = config::load_or_create(&st.cfg_path);
     st.layout = cfg.layout.min(cfg.layouts.len().saturating_sub(1));
@@ -564,7 +605,9 @@ unsafe fn tray_menu(hwnd: HWND) {
         AppendMenuW(menu, MF_POPUP, sub as usize, sub_label.as_ptr());
     }
     let interface = wide("Abrir interface");
+    let navegador = wide("Abrir no navegador");
     AppendMenuW(menu, MF_STRING, 5, interface.as_ptr());
+    AppendMenuW(menu, MF_STRING, 9, navegador.as_ptr());
     let subj = CreatePopupMenu();
     if !subj.is_null() {
         for (i, j) in st.cfg.jogos.iter().enumerate() {
@@ -644,6 +687,7 @@ unsafe fn tray_menu(hwnd: HWND) {
             let mut st = state();
             let n = st.jogos.soltar_todas();
             log(&format!("saindo: soltou {n} janela(s)"));
+            janela::fechar();
             tray_remove(hwnd);
             DestroyWindow(hwnd);
         }
@@ -655,9 +699,10 @@ unsafe fn tray_menu(hwnd: HWND) {
                 tray_update(hwnd, &st);
             }
         }
-        5 => {
+        5 => abrir_interface(),
+        9 => {
             if let Some(url) = httpd::abrir() {
-                log(&format!("interface aberta em {url}"));
+                log(&format!("interface aberta no navegador em {url}"));
             }
         }
         6 => {
@@ -735,6 +780,13 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             if ev == WM_RBUTTONUP || ev == WM_CONTEXTMENU || ev == WM_LBUTTONUP {
                 tray_menu(hwnd);
             }
+            0
+        }
+        WM_ABRIR => {
+            // Pedido de outra instância (por exemplo, atalho com --ui quando
+            // este programa já está rodando): mostra a janela, em vez de abrir
+            // outra aba de navegador.
+            abrir_interface();
             0
         }
         WM_DESTROY => {
@@ -1164,6 +1216,9 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     unsafe {
         SetProcessDpiAwarenessContext((-4isize) as *mut core::ffi::c_void);
+        // Apartamento single-thread: exigência do WebView2 da janela da
+        // interface, que roda no mesmo thread da fila de mensagens.
+        CoInitializeEx(std::ptr::null(), COINIT_APARTMENTTHREADED as u32);
     }
 
     if args.iter().any(|a| a == "--preview") {
@@ -1243,9 +1298,8 @@ fn main() {
         if mtx.is_null() || GetLastError() == ERROR_ALREADY_EXISTS {
             log("ja existe uma instancia rodando");
             if args.iter().any(|a| a == "--ui") {
-                if let Some(url) = httpd::abrir() {
-                    log(&format!("interface existente aberta em {url}"));
-                }
+                pedir_interface();
+                log("pedi a interface para a instancia que ja estava rodando");
             }
             return;
         }
@@ -1341,9 +1395,7 @@ fn main() {
             None => log("interface: nenhuma porta livre entre 47121 e 47159"),
         }
         if args.iter().any(|a| a == "--ui") {
-            if let Some(url) = httpd::abrir() {
-                log(&format!("interface aberta em {url}"));
-            }
+            abrir_interface();
         }
 
         log(&format!(

@@ -30,10 +30,13 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
 - **Caso Civilization V**: modo em que o encaixe é feito pelo cliente da janela,
   com o tamanho nascendo certo no arquivo `.ini` do jogo, mais um comando que
   regrava esse `.ini` com backup. Explicado abaixo.
-- **Interface local**: uma página servida em `127.0.0.1` mostra o mapa do
-  monitor, os perfis e o estado, e salva a configuração no arquivo.
-- **Sem telemetria**: o programa não faz nenhuma conexão de saída. A interface
-  é servida na própria máquina, com token.
+- **Interface local**: uma janela do próprio programa, com uma página servida em
+  `127.0.0.1`, mostra o mapa do monitor, os perfis e o estado, e salva a
+  configuração no arquivo.
+- **Sem telemetria**: o ZoneSnap não faz conexão de saída. A interface é servida
+  na própria máquina, com token. A janela usa o WebView2 do Windows, que é o
+  mesmo componente do Edge: ele carrega só o endereço local, mas o runtime tem
+  as conexões próprias dele, fora do controle do ZoneSnap.
 
 ## Como usar
 
@@ -52,7 +55,8 @@ Não precisa instalar, não pede administrador e não escreve nada fora de
 |---|---|
 | Desligar zonas / religar | liga e desliga o encaixe ao arrastar |
 | Layout | escolhe entre os layouts configurados |
-| Abrir interface | abre a página de configuração no navegador |
+| Abrir interface | abre a interface numa janela do próprio programa |
+| Abrir no navegador | abre a mesma interface no navegador padrão |
 | Jogos | prender ou soltar cada perfil, pausar a vigilância, soltar todas as janelas presas |
 | Abrir config.json | abre a configuração no editor padrão |
 | Recarregar config | relê o arquivo sem reiniciar |
@@ -77,9 +81,21 @@ Ctrl+Alt+Shift+Z`). O log fica em `%APPDATA%\ZoneSnap\zonesnap.log`.
 
 ## Interface
 
-`zonesnap.exe --ui` abre a interface no navegador padrão, já com o token no
-endereço. Se o programa já estiver rodando, esse comando só abre a janela do
-navegador apontando para a instância existente.
+`zonesnap.exe --ui` abre a interface numa janela do próprio programa, já com o
+token no endereço. Se o programa já estiver rodando, esse comando pede para a
+instância existente mostrar a janela dela, em vez de abrir uma segunda.
+
+A janela é do ZoneSnap, não uma aba do navegador: tem título e ícone na barra de
+tarefas, entra no `Alt+Tab`, abre centralizada e no tamanho de 1240x900 (menor
+que isso só se o monitor for pequeno). Fechar a janela não fecha o programa: ele
+continua no ícone ao lado do relógio, e a próxima vez que você abrir a interface
+a janela é criada de novo.
+
+Por dentro dela roda o WebView2, o mesmo componente de navegador que o Windows 11
+já traz instalado (Microsoft Edge WebView2 Runtime). Se esse componente não
+estiver na máquina, o programa escreve no log e abre a interface no navegador
+padrão, para você não ficar sem interface. O `Abrir no navegador`, no menu do
+ícone, faz isso de propósito.
 
 A página mostra:
 
@@ -225,6 +241,7 @@ que abrir. Não precisa de tarefa agendada nem de administrador.
 | Configuração | `%APPDATA%\ZoneSnap\config.json` |
 | Registro | `%APPDATA%\ZoneSnap\zonesnap.log` |
 | Token e porta da interface | `%APPDATA%\ZoneSnap\ui.token`, `ui.port` |
+| Cache do WebView2 da janela | `%LOCALAPPDATA%\ZoneSnap\webview` |
 | `.ini` do Civ V | `Documents\My Games\Sid Meier's Civilization 5\GraphicsSettingsDX11.ini` |
 
 A pasta de documentos é resolvida pelo Windows, então funciona com OneDrive e com

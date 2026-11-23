@@ -1,6 +1,6 @@
 [package]
 name = "zonesnap"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "Zonas de encaixe para janelas no Windows, configuraveis por JSON"
 
@@ -22,6 +22,8 @@ windows-sys = { version = "0.59", features = [
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
+webview2-com = "0.39.1"
+windows = { version = "0.62", features = ["Win32_Foundation"] }
 
 [profile.release]
 opt-level = 2

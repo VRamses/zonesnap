@@ -242,11 +242,18 @@ fn atender(mut s: TcpStream, token: &str) {
     }
 }
 
-/// Abre a interface no navegador padrão, reusando a porta e o token gravados.
-pub fn abrir() -> Option<String> {
+/// Endereço da interface, com a porta e o token gravados pelo processo que a
+/// está servindo. Não abre nada: quem chama decide entre a janela do programa e
+/// o navegador.
+pub fn endereco() -> Option<String> {
     let porta = ler_arquivo("ui.port")?;
     let token = ler_arquivo("ui.token")?;
-    let endereco = format!("http://127.0.0.1:{porta}/?t={token}");
+    Some(format!("http://127.0.0.1:{porta}/?t={token}"))
+}
+
+/// Abre a interface no navegador padrão, reusando a porta e o token gravados.
+pub fn abrir() -> Option<String> {
+    let endereco = endereco()?;
     let op = crate::wide("open");
     let url = crate::wide(&endereco);
     unsafe {
