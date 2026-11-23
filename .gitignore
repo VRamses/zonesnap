@@ -1,0 +1,13 @@
+/target
+/zonesnap.exe
+/ui/node_modules
+/ui/dist
+/ui/captura.png
+*.pdb
+.DS_Store
+
+# segredos: nunca versionar
+.env
+.env.*
+!.env.example
+!.env.*.example

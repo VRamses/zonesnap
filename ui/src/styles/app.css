@@ -1,0 +1,105 @@
+@import "tailwindcss";
+@import "./shadcn.css";
+
+/* Tokens do app. Ficam em :where() para não sobrepor o que vem dos
+   componentes da biblioteca. */
+:where(:root) {
+  --zs-bg: #0a0c10;
+  --zs-surface: #10131a;
+  --zs-surface-2: #151a23;
+  --zs-line: #222a36;
+  --zs-line-forte: #2f3a48;
+  --zs-ink: #e8edf5;
+  --zs-dim: #94a1b3;
+  --zs-accent: #3474f6;
+  --zs-accent-fraco: #1d3a76;
+  --zs-ok: #4ad18a;
+  --zs-alerta: #f0b23c;
+}
+
+:where(html, body) {
+  background: var(--zs-bg);
+  color: var(--zs-ink);
+}
+
+:where(body) {
+  margin: 0;
+  font-family:
+    "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(h1, h2, h3, p) {
+  margin: 0;
+}
+
+:where(*) {
+  box-sizing: border-box;
+}
+
+.zs-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.zs-faixa {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--zs-line) 0 1px,
+    transparent 1px 5%
+  );
+}
+
+.zs-chip {
+  border: 1px solid var(--zs-line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--zs-dim);
+  background: var(--zs-surface);
+  cursor: pointer;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.zs-chip:hover {
+  color: var(--zs-ink);
+  border-color: var(--zs-line-forte);
+}
+
+.zs-chip[data-ativo="true"] {
+  color: #fff;
+  border-color: var(--zs-accent);
+  background: var(--zs-accent-fraco);
+}
+
+.zs-chip:focus-visible {
+  outline: 2px solid var(--zs-accent);
+  outline-offset: 2px;
+}
+
+.zs-campo {
+  background: var(--zs-bg);
+  border: 1px solid var(--zs-line);
+  border-radius: 6px;
+  color: var(--zs-ink);
+  padding: 5px 8px;
+  font-size: 13px;
+  width: 100%;
+}
+
+.zs-campo:focus-visible {
+  outline: 2px solid var(--zs-accent);
+  outline-offset: 1px;
+  border-color: var(--zs-accent);
+}
+
+.zs-rotulo {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--zs-dim);
+}
