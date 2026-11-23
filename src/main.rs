@@ -608,6 +608,12 @@ unsafe fn tray_menu(hwnd: HWND) {
     let sair = wide("Sair");
     AppendMenuW(menu, MF_STRING, 4, sair.as_ptr());
 
+    // TrackPopupMenu roda um laço modal e despacha WM_TIMER daqui mesmo.
+    // Se a trava do estado estiver na mão neste ponto, o primeiro timer que
+    // chamar state() trava o programa para sempre. O menu já está montado:
+    // solta a trava antes de abrir, e cada ação pega a sua.
+    drop(st);
+
     let mut pt = POINT { x: 0, y: 0 };
     GetCursorPos(&mut pt);
     SetForegroundWindow(hwnd);
@@ -623,12 +629,11 @@ unsafe fn tray_menu(hwnd: HWND) {
     DestroyMenu(menu);
     PostMessageW(hwnd, WM_NULL, 0, 0);
 
-    drop(st);
     match cmd {
         1 => on_hotkey(2),
         2 => {
-            let st = state();
-            open_config(&st.cfg_path);
+            let caminho = state().cfg_path.clone();
+            open_config(&caminho);
         }
         3 => {
             let mut st = state();
