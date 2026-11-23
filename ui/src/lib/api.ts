@@ -48,6 +48,10 @@ export type Ini = {
 
 export type JogoEstado = Jogo & { preso: boolean; aberto: boolean; ini?: Ini | null };
 
+// Atalho que o Windows aceitou registrar. `ok: false` é combinação que outro
+// programa já usa, e a interface mostra a tecla riscada.
+export type Atalho = { tecla: string; oque: string; ok: boolean };
+
 export type Estado = {
   versao: string;
   ativo: boolean;
@@ -60,6 +64,7 @@ export type Estado = {
   jogo_largura: number;
   jogos: JogoEstado[];
   presos: number;
+  atalhos?: Atalho[];
   monitor: { largura: number; altura: number };
   caminho_config: string;
   caminho_log: string | null;

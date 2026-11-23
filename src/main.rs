@@ -52,6 +52,24 @@ static MAIN: AtomicIsize = AtomicIsize::new(0);
 static STATE: OnceLock<Mutex<AppState>> = OnceLock::new();
 static LOG_PATH: OnceLock<PathBuf> = OnceLock::new();
 
+/// Atalhos que o Windows aceitou registrar nesta execução, na ordem em que
+/// foram pedidos. A interface mostra o que está valendo de verdade, com a
+/// tecla riscada quando outro programa já tomou a combinação.
+static ATALHOS: Mutex<Vec<serde_json::Value>> = Mutex::new(Vec::new());
+
+fn anotar_atalho(tecla: &str, oque: &str, ok: bool) {
+    if let Ok(mut lista) = ATALHOS.lock() {
+        lista.push(serde_json::json!({"tecla": tecla, "oque": oque, "ok": ok}));
+    }
+}
+
+fn atalhos_json() -> serde_json::Value {
+    match ATALHOS.lock() {
+        Ok(lista) => serde_json::Value::Array(lista.clone()),
+        Err(_) => serde_json::Value::Array(Vec::new()),
+    }
+}
+
 struct AppState {
     cfg: Config,
     cfg_path: PathBuf,
@@ -903,32 +921,61 @@ fn cli_snap(args: &[String], pos: usize) {
 }
 
 unsafe fn register_hotkeys(hwnd: HWND) {
+    if let Ok(mut lista) = ATALHOS.lock() {
+        lista.clear();
+    }
     let mods = MOD_WIN | MOD_ALT;
-    if RegisterHotKey(hwnd, 1, mods, 'L' as u32) == 0 {
+    let ok = RegisterHotKey(hwnd, 1, mods, 'L' as u32) != 0;
+    anotar_atalho("Win+Alt+L", "próximo layout", ok);
+    if !ok {
         log("hotkey Win+Alt+L indisponivel");
     }
-    if RegisterHotKey(hwnd, 2, mods, 'Z' as u32) == 0 {
+    let ok = RegisterHotKey(hwnd, 2, mods, 'Z' as u32) != 0;
+    anotar_atalho("Win+Alt+Z", "liga ou desliga a vigilância", ok);
+    if !ok {
         log("hotkey Win+Alt+Z indisponivel");
     }
+    let mut zonas: Vec<u32> = Vec::new();
     for i in 0..9u32 {
-        if RegisterHotKey(hwnd, 10 + i as i32, mods | MOD_SHIFT, '1' as u32 + i) == 0 {
+        if RegisterHotKey(hwnd, 10 + i as i32, mods | MOD_SHIFT, '1' as u32 + i) != 0 {
+            zonas.push(i + 1);
+        } else {
             log(&format!("hotkey Win+Alt+Shift+{} indisponivel", i + 1));
         }
     }
+    if zonas.len() == 9 {
+        anotar_atalho(
+            "Win+Alt+Shift+1 a 9",
+            "manda a janela em foco para a zona",
+            true,
+        );
+    } else {
+        for z in &zonas {
+            anotar_atalho(
+                &format!("Win+Alt+Shift+{z}"),
+                &format!("manda a janela em foco para a zona {z}"),
+                true,
+            );
+        }
+    }
     let ctrl_alt = MOD_CONTROL | MOD_ALT;
-    for (id, vk, nome) in [
-        (20, 'Z', "Ctrl+Alt+Z"),
-        (21, 'X', "Ctrl+Alt+X"),
-        (22, 'B', "Ctrl+Alt+B"),
-        (23, 'S', "Ctrl+Alt+S"),
+    for (id, vk, nome, oque) in [
+        (20, 'Z', "Ctrl+Alt+Z", "prende o jogo em foco"),
+        (21, 'X', "Ctrl+Alt+X", "solta o jogo em foco"),
+        (22, 'B', "Ctrl+Alt+B", "joga a janela em foco na área livre"),
+        (23, 'S', "Ctrl+Alt+S", "pausa ou retoma a vigilância"),
     ] {
         if RegisterHotKey(hwnd, id, ctrl_alt, vk as u32) != 0 {
+            anotar_atalho(nome, oque, true);
             continue;
         }
+        let com_shift = format!("Ctrl+Alt+Shift+{vk}");
         if RegisterHotKey(hwnd, id, ctrl_alt | MOD_SHIFT, vk as u32) != 0 {
-            log(&format!("hotkey {nome} ocupada; usei Ctrl+Alt+Shift+{vk}"));
+            log(&format!("hotkey {nome} ocupada; usei {com_shift}"));
+            anotar_atalho(&com_shift, oque, true);
         } else {
-            log(&format!("hotkey {nome} e Ctrl+Alt+Shift+{vk} indisponiveis"));
+            log(&format!("hotkey {nome} e {com_shift} indisponiveis"));
+            anotar_atalho(nome, oque, false);
         }
     }
 }
@@ -1086,6 +1133,7 @@ pub fn estado_json() -> serde_json::Value {
         "jogo_largura": st.cfg.jogo_largura,
         "jogos": jogos,
         "presos": st.jogos.quantidade(),
+        "atalhos": atalhos_json(),
         "monitor": {"largura": largura_mon, "altura": altura_mon},
         "caminho_config": st.cfg_path.display().to_string(),
         "caminho_log": LOG_PATH.get().map(|p| p.display().to_string()),

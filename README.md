@@ -21,8 +21,8 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
   Box mostrava, só que desenhada pelo próprio programa.
 - **Prévia avulsa**: `zonesnap.exe --preview` (ou `--preview --seconds 6`) mostra
   as zonas sem precisar arrastar nada.
-- **Encaixe por atalho**: `Win+Alt+1` a `Win+Alt+9` manda a janela em foco para a
-  zona daquele número.
+- **Encaixe por atalho**: `Win+Alt+Shift+1` a `Win+Alt+Shift+9` manda a janela em
+  foco para a zona daquele número.
 - **Perfis de jogo**: um perfil por processo fixa tamanho, posição e moldura.
   Com vigilância ligada, o ZoneSnap reencaixa a janela quando ela foge (o jogo
   redimensiona ao entrar em uma partida, por exemplo) sem tocar no que você
@@ -31,8 +31,9 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
   com o tamanho nascendo certo no arquivo `.ini` do jogo, mais um comando que
   regrava esse `.ini` com backup. Explicado abaixo.
 - **Interface local**: uma janela do próprio programa, com uma página servida em
-  `127.0.0.1`, mostra o mapa do monitor, os perfis e o estado, e salva a
-  configuração no arquivo.
+  `127.0.0.1`, com a planta do monitor em escala, os perfis de jogo, os atalhos
+  que o Windows registrou e os caminhos dos arquivos. O que você muda ali só é
+  gravado quando você clica em `Salvar`.
 - **Sem telemetria**: o ZoneSnap não faz conexão de saída. A interface é servida
   na própria máquina, com token. A janela usa o WebView2 do Windows, que é o
   mesmo componente do Edge: ele carrega só o endereço local, mas o runtime tem
@@ -43,7 +44,7 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
 1. Baixe `zonesnap.exe` (ou compile, veja o fim deste arquivo).
 2. Rode. Ele fica no ícone ao lado do relógio.
 3. Clique no ícone para abrir o menu (clique esquerdo também abre).
-4. Arraste a janela para uma zona e ela encaixa; `Win+Alt+1` a `9` encaixa
+4. Arraste a janela para uma zona e ela encaixa; `Win+Alt+Shift+1` a `9` encaixa
    direto.
 
 Não precisa instalar, não pede administrador e não escreve nada fora de
@@ -69,7 +70,8 @@ Os atalhos valem com a janela que você quer encaixar em foco.
 | Atalho | O que faz |
 |---|---|
 | `Win+Alt+L` | próximo layout |
-| `Win+Alt+1` a `9` | manda a janela em foco para a zona N |
+| `Win+Alt+Z` | liga ou desliga a vigilância |
+| `Win+Alt+Shift+1` a `9` | manda a janela em foco para a zona N |
 | `Ctrl+Alt+Z` | prende o jogo em foco (usa o perfil do processo) |
 | `Ctrl+Alt+X` | solta o jogo em foco e devolve a janela ao estado anterior |
 | `Ctrl+Alt+B` | manda o jogo em foco para a área livre, à direita da faixa |
@@ -78,6 +80,12 @@ Os atalhos valem com a janela que você quer encaixar em foco.
 Se outro programa já tomou um atalho `Ctrl+Alt+*`, o ZoneSnap registra a versão
 com `Shift` e escreve no registro qual foi usada (`Ctrl+Alt+Z ocupada; usei
 Ctrl+Alt+Shift+Z`). O log fica em `%APPDATA%\ZoneSnap\zonesnap.log`.
+
+A seção **Atalhos** da interface mostra o que o Windows aceitou de fato neste
+computador, não o que o programa pretendia: se um atalho caiu para a variação com
+`Shift`, é a variação que aparece na lista. Tecla que nem assim pôde ser
+registrada aparece riscada, com o aviso de que outro programa já usa a
+combinação.
 
 ## Interface
 
@@ -97,14 +105,23 @@ estiver na máquina, o programa escreve no log e abre a interface no navegador
 padrão, para você não ficar sem interface. O `Abrir no navegador`, no menu do
 ícone, faz isso de propósito.
 
-A página mostra:
+A página tem quatro seções, escolhidas na coluna da esquerda:
 
-- o mapa do monitor em escala, com as zonas do layout atual e o tamanho em
-  pixels de cada uma;
-- os layouts e o espaço entre zonas (a fresta é dividida meio a meio na divisa);
-- um cartão por perfil de jogo, com tamanho, posição, os três interruptores,
-  `Prender agora`, `Soltar` e `Ajustar o .ini do Civ V`;
-- os caminhos da configuração, do registro e do `.ini` do Civilization V.
+- **Layout**: a planta do monitor em escala, com a régua em pixels no topo e cada
+  zona escrita com o tamanho que vai receber. Abaixo ficam os sete layouts em
+  miniatura, com o nome embaixo de cada um, e o espaço entre zonas.
+- **Jogos**: um cartão por perfil, com tamanho, posição, os três interruptores,
+  `Prender agora`, `Soltar`, `Remover` e o aviso do `.ini` do jogo, com o botão
+  `Corrigir o .ini`.
+- **Atalhos**: as teclas que o Windows aceitou registrar nesta máquina e o que
+  cada uma faz.
+- **Programa**: versão, licença, repositório e os caminhos da configuração, do
+  registro e do `.ini` do Civilization V, cada um com um botão que copia.
+
+O que você muda na interface fica pendente até clicar em `Salvar`, no rodapé; aí
+o `config.json` é reescrito e o encaixe passa a usar os valores novos.
+`Descartar` volta ao que está gravado. A seção aberta também aparece no endereço
+(`.../#jogos`), então recarregar a página não devolve você para o começo.
 
 A interface conversa com um servidor HTTP preso em `127.0.0.1`, numa porta entre
 47121 e 47160, e exige o cabeçalho `X-ZoneSnap` com o token que está em
@@ -205,13 +222,14 @@ ini de Civilization V (DX11): ini em 2347x1440, mas o perfil pede 2300x1440.
 Com o jogo aberto não dá para corrigir: ele regrava o arquivo ao sair.
 ```
 
-No cartão do jogo a mesma frase aparece em três estados: ponto verde e texto
-apagado quando o `.ini` combina com o perfil, ponto âmbar com a frase do
-problema quando diverge, e nada quando o arquivo ainda não existe (o jogo não
-foi aberto nenhuma vez). Corrigir tem um botão, `Corrigir o .ini agora`, que só
-habilita com o jogo fechado; com ele aberto o botão fica apagado e diz
-`Feche o jogo para corrigir`. A mesma conferência está no menu do ícone, em
-`Jogos` > `Conferir o .ini do Civ V`, com o resultado numa caixa de aviso.
+No cartão do jogo a mesma frase aparece em dois estados. Quando o `.ini` combina
+com o perfil, ela sai em tom apagado, com a régua neutra e sem botão. Quando
+diverge, vira uma faixa âmbar com o problema em texto claro e o botão
+`Corrigir o .ini` ao lado, que só habilita com o jogo fechado; com ele aberto o
+botão fica apagado e a própria frase explica por quê (`ele regrava o arquivo ao
+sair`). Se o `.ini` ainda não existe, a frase diz que falta abrir o jogo uma vez
+em modo janela. A mesma conferência está no menu do ícone, em `Jogos` >
+`Conferir o .ini do Civ V`, com o resultado numa caixa de aviso.
 
 Pelo terminal, sem abrir a interface e sem tocar no arquivo:
 

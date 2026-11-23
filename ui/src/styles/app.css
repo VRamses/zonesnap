@@ -1,20 +1,24 @@
 @import "tailwindcss";
 @import "./shadcn.css";
 
-/* Tokens do app. Ficam em :where() para não sobrepor o que vem dos
-   componentes da biblioteca. */
+/* Folha do app. Os tokens ficam em :where() para não sobrepor o que vem dos
+   componentes de biblioteca (regra de isolamento do shadcn). */
 :where(:root) {
+  /* superfícies: trilho mais escuro, miolo um tom acima, painel um tom acima */
   --zs-bg: #0a0c10;
-  --zs-surface: #10131a;
+  --zs-rail: #0c0f14;
+  --zs-surface: #10141b;
   --zs-surface-2: #151a23;
-  --zs-line: #222a36;
-  --zs-line-forte: #2f3a48;
-  --zs-ink: #e8edf5;
-  --zs-dim: #94a1b3;
-  --zs-accent: #3474f6;
-  --zs-accent-fraco: #1d3a76;
-  --zs-ok: #4ad18a;
-  --zs-alerta: #f0b23c;
+  --zs-line: #1f2733;
+  --zs-line-forte: #2e3947;
+  --zs-ink: #e9eef6;
+  --zs-dim: #8b97a8;
+  --zs-accent: #3b7bf6;
+  --zs-accent-fraco: #16294d;
+  --zs-ok: #46c98a;
+  --zs-alerta: #e8b04a;
+  --zs-mono:
+    "Cascadia Mono", "Consolas", "SF Mono", ui-monospace, monospace;
 }
 
 :where(html, body) {
@@ -26,11 +30,14 @@
   margin: 0;
   font-family:
     "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  /* a janela é fixa: quem rola é o miolo, não a página */
+  overflow: hidden;
 }
 
-:where(h1, h2, h3, p) {
+:where(h1, h2, h3, p, dl, dd, dt) {
   margin: 0;
 }
 
@@ -38,57 +45,104 @@
   box-sizing: border-box;
 }
 
-.zs-num {
+/* Número e caminho em monoespaçada: o programa mede pixel, então o número tem
+   cara de instrumento, não de texto corrido. */
+.zs-num,
+.zs-mono {
+  font-family: var(--zs-mono);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
 
-.zs-faixa {
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--zs-line) 0 1px,
-    transparent 1px 5%
-  );
-}
-
-.zs-chip {
-  border: 1px solid var(--zs-line);
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 12px;
+.zs-rotulo {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: var(--zs-dim);
+}
+
+/* Fio de 1 px com marca de canto: o gesto que se repete em todo painel. */
+.zs-painel {
+  position: relative;
+  border: 1px solid var(--zs-line);
+  border-radius: 10px;
   background: var(--zs-surface);
-  cursor: pointer;
-  transition:
-    color 120ms ease,
-    border-color 120ms ease,
-    background-color 120ms ease;
 }
 
-.zs-chip:hover {
-  color: var(--zs-ink);
+.zs-painel::before,
+.zs-painel::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
   border-color: var(--zs-line-forte);
+  border-style: solid;
+  pointer-events: none;
 }
 
-.zs-chip[data-ativo="true"] {
-  color: #fff;
-  border-color: var(--zs-accent);
-  background: var(--zs-accent-fraco);
+.zs-painel::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+  border-top-left-radius: 10px;
 }
 
-.zs-chip:focus-visible {
+.zs-painel::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 1px 1px 0;
+  border-bottom-right-radius: 10px;
+}
+
+/* Trilho de navegação */
+.zs-item-trilho {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--zs-dim);
+  font-size: 13px;
+  text-align: left;
+  width: 100%;
+  transition:
+    background-color 100ms ease,
+    color 100ms ease;
+}
+
+.zs-item-trilho:hover {
+  background: var(--zs-surface);
+  color: var(--zs-ink);
+}
+
+.zs-item-trilho[data-ativo="true"] {
+  background: var(--zs-surface-2);
+  color: var(--zs-ink);
+  box-shadow: inset 2px 0 0 var(--zs-accent);
+}
+
+.zs-item-trilho:focus-visible {
   outline: 2px solid var(--zs-accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
+/* Campo numérico com a unidade dentro */
 .zs-campo {
+  width: 100%;
   background: var(--zs-bg);
   border: 1px solid var(--zs-line);
   border-radius: 6px;
   color: var(--zs-ink);
-  padding: 5px 8px;
-  font-size: 13px;
-  width: 100%;
+  padding: 6px 8px;
+  font-family: var(--zs-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.zs-campo:hover {
+  border-color: var(--zs-line-forte);
 }
 
 .zs-campo:focus-visible {
@@ -97,9 +151,124 @@
   border-color: var(--zs-accent);
 }
 
-.zs-rotulo {
+.zs-campo::-webkit-outer-spin-button,
+.zs-campo::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* Tecla de atalho */
+.zs-kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 2px 6px;
+  border: 1px solid var(--zs-line-forte);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--zs-surface-2);
+  color: var(--zs-ink);
+  font-family: var(--zs-mono);
   font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.zs-kbd[data-morta="true"] {
   color: var(--zs-dim);
+  border-style: dashed;
+  border-bottom-width: 1px;
+  text-decoration: line-through;
+  background: transparent;
+}
+
+/* Botão de divisão: o desenho das zonas é o próprio rótulo */
+.zs-divisao {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 8px 7px;
+  border: 1px solid var(--zs-line);
+  border-radius: 8px;
+  background: var(--zs-surface);
+  color: var(--zs-dim);
+  transition:
+    border-color 100ms ease,
+    background-color 100ms ease,
+    color 100ms ease;
+}
+
+.zs-divisao:hover {
+  border-color: var(--zs-line-forte);
+  color: var(--zs-ink);
+}
+
+.zs-divisao[data-ativo="true"] {
+  border-color: var(--zs-accent);
+  background: var(--zs-accent-fraco);
+  color: var(--zs-ink);
+}
+
+.zs-divisao:focus-visible {
+  outline: 2px solid var(--zs-accent);
+  outline-offset: 2px;
+}
+
+/* Controle deslizante */
+.zs-slider {
+  width: 100%;
+  height: 20px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.zs-slider::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--zs-line-forte);
+}
+
+.zs-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border: 2px solid var(--zs-bg);
+  border-radius: 50%;
+  background: var(--zs-accent);
+}
+
+.zs-slider:hover::-webkit-slider-thumb {
+  background: #5c92ff;
+}
+
+.zs-slider:focus-visible {
+  outline: none;
+}
+
+.zs-slider:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgb(59 123 246 / 0.35);
+}
+
+/* Barra de rolagem discreta, como a de programa de Windows */
+.zs-rolagem {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--zs-line-forte) transparent;
+}
+
+.zs-rolagem::-webkit-scrollbar {
+  width: 10px;
+}
+
+.zs-rolagem::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background-clip: content-box;
+  background-color: var(--zs-line-forte);
+}
+
+.zs-rolagem::-webkit-scrollbar-track {
+  background: transparent;
 }

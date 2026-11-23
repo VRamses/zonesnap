@@ -20,13 +20,16 @@ WorkOS. Usados como dependência, sem cópia de código.
 
 `tailwindcss` e `@tailwindcss/vite`, MIT, Copyright (c) Tailwind Labs, Inc. A
 folha `ui/src/styles/shadcn.css` carrega os tokens e os keyframes do shadcn e é
-importada separada de `app.css`, sem fusão com os tokens do ZoneSnap.
+importada separada de `app.css`, sem fusão com os tokens do ZoneSnap. Ela também
+importa `tw-animate-css` (MIT), de Wombosvideo, e `shadcn/tailwind.css`, do
+próprio shadcn, só para as classes de animação que os componentes usam.
 
 ## Outros
 
 | Pacote | Licença |
 |---|---|
-| `windows-sys` | MIT OR Apache-2.0 |
+| `windows-sys`, `windows` | MIT OR Apache-2.0 |
+| `webview2-com`, `webview2-com-sys` | MIT |
 | `tiny-skia` | BSD-3-Clause |
 | `serde`, `serde_json` | MIT OR Apache-2.0 |
 | `react`, `react-dom` | MIT |
