@@ -30,6 +30,10 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
 - **Caso Civilization V**: modo em que o encaixe é feito pelo cliente da janela,
   com o tamanho nascendo certo no arquivo `.ini` do jogo, mais um comando que
   regrava esse `.ini` com backup. Explicado abaixo.
+- **Modo vídeo**: esconde a moldura do navegador (abas, barra de endereço e a
+  borda do Windows) para o vídeo ocupar a coluna inteira, sem mexer no tamanho
+  nem no lugar da janela. `Ctrl+Alt+V` entra e sai; o mesmo comando está no menu
+  do ícone e na seção Jogos da interface. Serve para Opera, Chrome, Edge e Brave.
 - **Interface local**: uma janela do próprio programa, com uma página servida em
   `127.0.0.1`, com a planta do monitor em escala, os perfis de jogo, os atalhos
   que o Windows registrou e os caminhos dos arquivos. O que você muda ali só é
@@ -59,6 +63,7 @@ Não precisa instalar, não pede administrador e não escreve nada fora de
 | Abrir interface | abre a interface numa janela do próprio programa |
 | Abrir no navegador | abre a mesma interface no navegador padrão |
 | Jogos | prender ou soltar cada perfil, pausar a vigilância, soltar todas as janelas presas |
+| Esconder a moldura do navegador | modo vídeo: tira abas e barra de endereço da janela em foco |
 | Abrir config.json | abre a configuração no editor padrão |
 | Recarregar config | relê o arquivo sem reiniciar |
 | Sair | fecha o programa e solta as janelas presas |
@@ -76,6 +81,7 @@ Os atalhos valem com a janela que você quer encaixar em foco.
 | `Ctrl+Alt+X` | solta o jogo em foco e devolve a janela ao estado anterior |
 | `Ctrl+Alt+B` | manda o jogo em foco para a área livre, à direita da faixa |
 | `Ctrl+Alt+S` | pausa ou retoma a vigilância |
+| `Ctrl+Alt+V` | modo vídeo: esconde a moldura do navegador em foco (aperte de novo para voltar) |
 
 Se outro programa já tomou um atalho `Ctrl+Alt+*`, o ZoneSnap registra a versão
 com `Shift` e escreve no registro qual foi usada (`Ctrl+Alt+Z ocupada; usei
@@ -112,7 +118,8 @@ A página tem quatro seções, escolhidas na coluna da esquerda:
   miniatura, com o nome embaixo de cada um, e o espaço entre zonas.
 - **Jogos**: um cartão por perfil, com tamanho, posição, os três interruptores,
   `Prender agora`, `Soltar`, `Remover` e o aviso do `.ini` do jogo, com o botão
-  `Corrigir o .ini`.
+  `Corrigir o .ini`. No fim da seção fica o painel do modo vídeo, com o atalho e o
+  botão que esconde ou traz de volta a moldura do navegador.
 - **Atalhos**: as teclas que o Windows aceitou registrar nesta máquina e o que
   cada uma faz.
 - **Programa**: versão, licença, repositório e os caminhos da configuração, do
@@ -252,6 +259,33 @@ Se você mudar a largura da faixa no perfil, rode o passo 2 de novo: o `.ini`
 precisa combinar com o perfil, senão o encaixe é recusado de propósito, para não
 esticar a imagem.
 
+## Modo vídeo
+
+O navegador não tem um modo de vídeo que respeite uma zona: a tela cheia dele
+(`F11`) cobre o monitor inteiro, e em janela comum as abas e a barra de endereço
+continuam em cima. O atalho `Ctrl+Alt+V` resolve isso com o navegador em foco: o
+ZoneSnap mede a distância entre a janela e a página renderizada dentro dela,
+esconde a moldura e empurra a página para começar exatamente no topo da tela. O
+vídeo ocupa a coluna da zona do pé ao teto, sem faixa de abas em cima e sem
+mostrar a área de trabalho.
+
+O mesmo comando tira de volta: a moldura, a posição e o tamanho voltam ao que
+estavam. O menu do ícone tem o item `Esconder a moldura do navegador` e a seção
+Jogos da interface tem o painel do modo vídeo, que mostra quantas janelas estão
+sem moldura neste momento.
+
+Detalhes que valem saber:
+
+- Funciona com navegadores do Chromium: Opera, Chrome, Edge, Brave e Vivaldi. Se
+  a janela em foco não for um deles, o atalho não mexe em nada e explica o motivo.
+- Se a janela já estiver em tela cheia do navegador (`F11`), o ZoneSnap não faz
+  nada e pede para você apertar `F11` antes.
+- Com o navegador em segundo plano, o comando o traz para a frente para poder
+  medir a página; é o comportamento esperado, já que a intenção é ver o vídeo.
+- Se o programa fechar de repente, a janela pode ficar sem moldura; abrir o
+  ZoneSnap de novo e usar o comando na mesma janela devolve tudo. O encerramento
+  normal pelo menu devolve sozinho.
+
 ## Iniciar com o Windows
 
 `Win+R`, digite `shell:startup` e ponha um atalho para `zonesnap.exe` na pasta
@@ -297,6 +331,7 @@ o nome traduzido (`Documentos`).
 | Prender jogo num tamanho fixo com vigilância | sim | não |
 | Encaixe pelo cliente da janela (Civ V) | sim | não |
 | Regravar o `.ini` do jogo | sim | não |
+| Modo vídeo (navegador sem moldura dentro da zona) | sim | não |
 | Instalação | nenhuma, um `.exe` | instalador do PowerToys |
 | Customização do código | Rust, MIT | C++, MIT |
 

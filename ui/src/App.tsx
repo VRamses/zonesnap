@@ -320,6 +320,7 @@ export default function App() {
               prender={(p) => void executar("prender", p)}
               soltar={(p) => void executar("soltar", p)}
               preparar={(p) => void executar("preparar_civ", p)}
+              alternarVideo={() => void executar("video")}
               recados={recados}
             />
           ) : secao === "atalhos" ? (

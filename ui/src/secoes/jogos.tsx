@@ -3,7 +3,7 @@
 // único lugar onde ele faz sentido.
 
 import { Button } from "../components/ui/button";
-import { Campo, Chave, Ponto, Vazio } from "../components/pecas";
+import { Campo, Chave, Kbd, Ponto, Vazio } from "../components/pecas";
 import type { Config, Estado, Ini, Jogo } from "../lib/api";
 
 type Props = {
@@ -19,8 +19,46 @@ type Props = {
   prender: (processo: string) => void;
   soltar: (processo: string) => void;
   preparar: (processo: string) => void;
+  alternarVideo: () => void;
   recados: Record<string, string>;
 };
+
+function PainelVideo({
+  abertas,
+  aoAlternar,
+}: {
+  abertas: number;
+  aoAlternar: () => void;
+}) {
+  return (
+    <section className="zs-painel flex items-start justify-between gap-4 p-4">
+      <div className="min-w-0">
+        <p className="zs-rotulo pb-1">Modo vídeo</p>
+        <p className="max-w-[68ch] text-[12px] leading-snug text-[var(--zs-dim)]">
+          Esconde as abas e a barra de endereço do navegador, para o vídeo ocupar
+          a coluna inteira. A janela fica onde está: some só a moldura do alto, e
+          um segundo toque devolve tudo. Serve para Opera, Chrome, Edge e Brave.
+        </p>
+        <p className="flex flex-wrap items-center gap-2 pt-2.5 text-[11px] text-[var(--zs-dim)]">
+          <Kbd>Ctrl+Alt+V</Kbd>
+          <span>
+            {abertas > 0
+              ? `${abertas} ${abertas > 1 ? "janelas" : "janela"} sem moldura agora`
+              : "nenhuma janela sem moldura"}
+          </span>
+        </p>
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        className="shrink-0 border-[var(--zs-line-forte)]"
+        onClick={aoAlternar}
+      >
+        {abertas > 0 ? "Trazer a moldura" : "Esconder a moldura"}
+      </Button>
+    </section>
+  );
+}
 
 function AvisoIni({
   ini,
@@ -213,6 +251,7 @@ export function SecaoJogos({
   prender,
   soltar,
   preparar,
+  alternarVideo,
   recados,
 }: Props) {
   return (
@@ -284,6 +323,8 @@ export function SecaoJogos({
           />
         );
       })}
+
+      <PainelVideo abertas={estado?.video ?? 0} aoAlternar={alternarVideo} />
     </div>
   );
 }

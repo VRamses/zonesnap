@@ -6,6 +6,7 @@ mod httpd;
 mod janela;
 mod jogos;
 mod overlay;
+mod video;
 
 use config::{Config, Zone};
 use overlay::{hit_zone, zone_rect, MonGeom, Overlay};
@@ -592,6 +593,10 @@ fn on_hotkey(id: i32) {
             Ok(m) => log(&format!("atalho pausar: {m}")),
             Err(e) => log(&format!("atalho pausar: {e}")),
         },
+        24 => match video::alternar() {
+            Ok(m) => log(&format!("atalho video: {m}")),
+            Err(e) => log(&format!("atalho video: {e}")),
+        },
         _ => {}
     }
 }
@@ -624,6 +629,8 @@ unsafe fn tray_menu(hwnd: HWND) {
     let navegador = wide("Abrir no navegador");
     AppendMenuW(menu, MF_STRING, 5, interface.as_ptr());
     AppendMenuW(menu, MF_STRING, 9, navegador.as_ptr());
+    let video_item = wide("Esconder a moldura do navegador");
+    AppendMenuW(menu, MF_STRING, 10, video_item.as_ptr());
     let subj = CreatePopupMenu();
     if !subj.is_null() {
         for (i, j) in st.cfg.jogos.iter().enumerate() {
@@ -703,6 +710,11 @@ unsafe fn tray_menu(hwnd: HWND) {
             let mut st = state();
             let n = st.jogos.soltar_todas();
             log(&format!("saindo: soltou {n} janela(s)"));
+            drop(st);
+            let v = video::soltar_tudo();
+            if v > 0 {
+                log(&format!("saindo: moldura de volta em {v} janela(s)"));
+            }
             janela::fechar();
             tray_remove(hwnd);
             DestroyWindow(hwnd);
@@ -716,6 +728,10 @@ unsafe fn tray_menu(hwnd: HWND) {
             }
         }
         5 => abrir_interface(),
+        10 => match video::alternar() {
+            Ok(m) => log(&format!("menu video: {m}")),
+            Err(e) => log(&format!("menu video: {e}")),
+        },
         9 => {
             if let Some(url) = httpd::abrir() {
                 log(&format!("interface aberta no navegador em {url}"));
@@ -811,6 +827,10 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
             let n = state().jogos.soltar_todas();
             if n > 0 {
                 log(&format!("encerrando: soltou {n} janela(s)"));
+            }
+            let v = video::soltar_tudo();
+            if v > 0 {
+                log(&format!("encerrando: moldura de volta em {v} janela(s)"));
             }
             tray_remove(hwnd);
             PostQuitMessage(0);
@@ -964,6 +984,12 @@ unsafe fn register_hotkeys(hwnd: HWND) {
         (21, 'X', "Ctrl+Alt+X", "solta o jogo em foco"),
         (22, 'B', "Ctrl+Alt+B", "joga a janela em foco na área livre"),
         (23, 'S', "Ctrl+Alt+S", "pausa ou retoma a vigilância"),
+        (
+            24,
+            'V',
+            "Ctrl+Alt+V",
+            "esconde a moldura do navegador",
+        ),
     ] {
         if RegisterHotKey(hwnd, id, ctrl_alt, vk as u32) != 0 {
             anotar_atalho(nome, oque, true);
@@ -1133,6 +1159,7 @@ pub fn estado_json() -> serde_json::Value {
         "jogo_largura": st.cfg.jogo_largura,
         "jogos": jogos,
         "presos": st.jogos.quantidade(),
+        "video": video::quantidade(),
         "atalhos": atalhos_json(),
         "monitor": {"largura": largura_mon, "altura": altura_mon},
         "caminho_config": st.cfg_path.display().to_string(),
@@ -1217,6 +1244,7 @@ pub fn executar_acao(acao: &str, processo: Option<&str>) -> Result<String, Strin
             }
             Ok("prévia das zonas por 2 segundos".to_string())
         }
+        "video" => video::alternar(),
         "preparar_civ" => {
             let (w, h) = {
                 let st = state();
@@ -1274,6 +1302,31 @@ fn main() {
     }
     if let Some(pos) = args.iter().position(|a| a == "--snap") {
         cli_snap(&args, pos);
+        return;
+    }
+
+    // Modo vídeo sem atalho e sem subir o ícone: serve para testar e para
+    // quem quiser chamar de um script.
+    if args.iter().any(|a| a == "--video") {
+        // Com um nome de processo depois do --video, age na maior janela dele
+        // em vez de depender de qual janela está em foco.
+        let janela = arg_value(&args, "--video")
+            .filter(|v| !v.starts_with("--"))
+            .and_then(jogos::maior_janela);
+        let r = match janela {
+            Some(h) => video::alternar_janela(h),
+            None => video::alternar(),
+        };
+        match r {
+            Ok(m) => {
+                log(&format!("video: {m}"));
+                println!("{m}");
+            }
+            Err(e) => {
+                log(&format!("video: {e}"));
+                println!("falhou: {e}");
+            }
+        }
         return;
     }
 

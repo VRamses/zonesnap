@@ -14,6 +14,7 @@ const PADRAO: Atalho[] = [
   { tecla: "Ctrl+Alt+X", oque: "solta o jogo em foco", ok: true },
   { tecla: "Ctrl+Alt+B", oque: "joga a janela em foco na área livre", ok: true },
   { tecla: "Ctrl+Alt+S", oque: "pausa ou retoma a vigilância", ok: true },
+  { tecla: "Ctrl+Alt+V", oque: "esconde a moldura do navegador", ok: true },
 ];
 
 function Teclas({ tecla, ok }: { tecla: string; ok: boolean }) {

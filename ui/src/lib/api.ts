@@ -64,6 +64,7 @@ export type Estado = {
   jogo_largura: number;
   jogos: JogoEstado[];
   presos: number;
+  video: number;
   atalhos?: Atalho[];
   monitor: { largura: number; altura: number };
   caminho_config: string;
