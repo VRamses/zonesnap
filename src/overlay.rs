@@ -97,8 +97,8 @@ impl Overlay {
             None => return false,
         };
 
-        for (i, z) in zones.iter().enumerate() {
-            let r = zone_rect(mon, z, gap);
+        for i in 0..zones.len() {
+            let r = zone_rect(mon, zones, i, gap);
             let x0 = (r.left - mon.rect.left) as f32;
             let y0 = (r.top - mon.rect.top) as f32;
             let x1 = (r.right - mon.rect.left) as f32;
@@ -257,22 +257,54 @@ fn rounded_rect(x0: f32, y0: f32, x1: f32, y1: f32, r: f32) -> Option<tiny_skia:
     pb.finish()
 }
 
-pub fn zone_rect(mon: &MonGeom, z: &Zone, gap: i32) -> RECT {
+/// Retângulo de uma zona, em pixels da área útil do monitor.
+///
+/// Com espaçamento 0, a zona avança 1 px sobre a vizinha que começa exatamente
+/// onde ela termina. O Windows desenha uma borda translúcida de 1 px na janela
+/// encaixada e essa borda deixa o papel de parede aparecer, o que vira uma
+/// linha colorida entre as duas janelas; avançando 1 px, a borda cai sobre o
+/// conteúdo da vizinha em vez de cair sobre o papel de parede.
+pub fn zone_rect(mon: &MonGeom, zones: &[Zone], i: usize, gap: i32) -> RECT {
+    let z = &zones[i];
     let w = (mon.work.right - mon.work.left) as f32;
     let h = (mon.work.bottom - mon.work.top) as f32;
     let half = gap / 2;
     let rest = gap - half;
-    RECT {
+    let mut r = RECT {
         left: mon.work.left + (z.x * w).round() as i32 + half,
         top: mon.work.top + (z.y * h).round() as i32 + half,
         right: mon.work.left + ((z.x + z.w) * w).round() as i32 - rest,
         bottom: mon.work.top + ((z.y + z.h) * h).round() as i32 - rest,
+    };
+    if gap == 0 {
+        let fim_x = r.right;
+        let fim_y = r.bottom;
+        let mut vizinho_direita = false;
+        let mut vizinho_abaixo = false;
+        for (j, o) in zones.iter().enumerate() {
+            if j == i {
+                continue;
+            }
+            if mon.work.left + (o.x * w).round() as i32 == fim_x {
+                vizinho_direita = true;
+            }
+            if mon.work.top + (o.y * h).round() as i32 == fim_y {
+                vizinho_abaixo = true;
+            }
+        }
+        if vizinho_direita {
+            r.right = (r.right + 1).min(mon.work.right);
+        }
+        if vizinho_abaixo {
+            r.bottom = (r.bottom + 1).min(mon.work.bottom);
+        }
     }
+    r
 }
 
 pub fn hit_zone(mon: &MonGeom, zones: &[Zone], gap: i32, pt: POINT) -> Option<usize> {
-    zones.iter().position(|z| {
-        let r = zone_rect(mon, z, gap);
+    (0..zones.len()).find(|&i| {
+        let r = zone_rect(mon, zones, i, gap);
         pt.x >= r.left && pt.x < r.right && pt.y >= r.top && pt.y < r.bottom
     })
 }

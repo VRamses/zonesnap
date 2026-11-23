@@ -170,7 +170,7 @@ fn ignorable(hwnd: isize) -> bool {
     )
 }
 
-unsafe fn snap_window(hwnd: isize, mon: &MonGeom, zone: &Zone, gap: i32) -> bool {
+unsafe fn snap_window(hwnd: isize, mon: &MonGeom, zones: &[Zone], idx: usize, gap: i32) -> bool {
     if hwnd == 0 {
         return false;
     }
@@ -181,7 +181,7 @@ unsafe fn snap_window(hwnd: isize, mon: &MonGeom, zone: &Zone, gap: i32) -> bool
     if IsIconic(h) != 0 || IsZoomed(h) != 0 {
         ShowWindow(h, SW_RESTORE);
     }
-    let target = zone_rect(mon, zone, gap);
+    let target = zone_rect(mon, zones, idx, gap);
     let mut wr: RECT = std::mem::zeroed();
     if GetWindowRect(h, &mut wr) == 0 {
         return false;
@@ -291,10 +291,8 @@ fn on_drag_end() {
     let zones = zones_of(&st.cfg, st.layout);
     let gap = st.cfg.gap;
     if let Some(i) = hit_zone(&mon, &zones, gap, pt) {
-        if let Some(z) = zones.get(i) {
-            unsafe {
-                snap_window(drag, &mon, z, gap);
-            }
+        unsafe {
+            snap_window(drag, &mon, &zones, i, gap);
         }
     }
 }
@@ -504,9 +502,9 @@ fn on_hotkey(id: i32) {
                 y: wr.top,
             });
             let zones = zones_of(&st.cfg, st.layout);
-            if let Some(z) = zones.get(idx) {
+            if idx < zones.len() {
                 unsafe {
-                    snap_window(alvo, &mon, z, st.cfg.gap);
+                    snap_window(alvo, &mon, &zones, idx, st.cfg.gap);
                 }
             }
         }
@@ -895,11 +893,12 @@ fn cli_snap(args: &[String], pos: usize) {
         y: wr.top,
     });
     let zones = zones_of(&cfg, cfg.layout);
-    match zones.get(idx) {
-        Some(z) => unsafe {
-            snap_window(hwnd, &mon, z, cfg.gap);
-        },
-        None => log(&format!("snap: zona {idx} nao existe neste layout")),
+    if idx < zones.len() {
+        unsafe {
+            snap_window(hwnd, &mon, &zones, idx, cfg.gap);
+        }
+    } else {
+        log(&format!("snap: zona {idx} nao existe neste layout"));
     }
 }
 

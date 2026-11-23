@@ -149,7 +149,12 @@ Editar com o programa aberto funciona: ele relê o arquivo a cada 2 segundos.
 
 - `zones`: cada zona é `[x, y, largura, altura]` em fração da área útil do
   monitor, de 0 a 1. `[0, 0, 0.5, 1]` é a metade esquerda inteira.
-- `gap`: fresta em pixels entre zonas, dividida meio a meio na divisa.
+- `gap`: fresta em pixels entre zonas, dividida meio a meio na divisa. Com `0`,
+  as zonas se encostam e cada uma avança 1 px sobre a vizinha que começa
+  exatamente onde ela termina. Esse 1 px existe porque o Windows desenha uma
+  borda translúcida na janela encaixada e ela deixa o papel de parede aparecer:
+  avançando, a borda cai sobre o conteúdo da vizinha em vez de virar uma linha
+  colorida entre as duas janelas.
 - `layout`: índice do layout em uso.
 - `jogo_largura`: largura padrão da faixa do jogo quando o perfil não define uma.
 - `processo`: nome do executável, como aparece no Gerenciador de Tarefas.
