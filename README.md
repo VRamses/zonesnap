@@ -1,7 +1,7 @@
 # ZoneSnap
 
 Zonas de encaixe e encaixe de jogos para o Windows, num executável único em Rust,
-sem instalador, sem admin e com configuração em JSON legível.
+com instalador opcional, sem admin e com configuração em JSON legível.
 
 Nasceu de um problema concreto: num ultrawide 3440 x 1440, o Easy Setting Box
 parou de mostrar a barra de zonas ao arrastar a janela, e o FancyZones do
@@ -50,15 +50,42 @@ por layout e perfis por processo, com vigilância que reencaixa sozinha.
 
 ## Como usar
 
-1. Baixe `zonesnap.exe` (ou compile, veja o fim deste arquivo).
-2. Rode. Ele fica no ícone ao lado do relógio.
-3. Clique no ícone para abrir o menu (clique esquerdo também abre).
-4. Arraste a janela segurando `Ctrl`: as zonas aparecem e a janela encaixa na
+1. Baixe o instalador `zonesnap-<versão>-setup.exe` na página de
+   [releases](https://github.com/VRamses/zonesnap/releases). Quem prefere compilar
+   tem as instruções no fim deste arquivo.
+2. Rode o instalador. Ele instala só para o seu usuário, sem pedir administrador.
+   Quem não quer instalar nada pode pegar o `zonesnap-<versão>-portatil.zip` e
+   rodar o `zonesnap.exe` de qualquer pasta.
+3. Abra pelo atalho do Menu Iniciar. Ele fica no ícone ao lado do relógio.
+4. Clique no ícone para abrir o menu (clique esquerdo também abre).
+5. Arraste a janela segurando `Ctrl`: as zonas aparecem e a janela encaixa na
    zona sob o cursor ao soltar. Sem a tecla, ela fica onde você soltou.
    `Win+Alt+Shift+1` a `9` encaixa direto, sem arrastar.
 
-Não precisa instalar, não pede administrador e não escreve nada fora de
-`%APPDATA%\ZoneSnap` e da pasta que você mandar ele abrir.
+O programa não escreve nada fora de `%APPDATA%\ZoneSnap`, do cache do WebView2 em
+`%LOCALAPPDATA%\ZoneSnap` e da pasta que você mandar ele abrir.
+
+## Instalador
+
+O script é o `installer/zonesnap.iss`, feito em
+[Inno Setup 6](https://jrsoftware.org/isinfo.php).
+
+- Instala em `%LOCALAPPDATA%\Programs\ZoneSnap` sem pedir elevação. No registro
+  fica só a entrada de desinstalação do seu usuário, em
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`.
+- Cria atalho no Menu Iniciar e, se ficar marcado, também na área de trabalho.
+- A opção `Iniciar o ZoneSnap junto com o Windows` é o mesmo atalho em
+  `shell:startup` descrito mais abaixo. Ela vem desmarcada.
+- Se o ZoneSnap estiver aberto, o instalador o fecha para trocar o executável, e
+  não o reabre sozinho: quem abre é você, ou a última tela do instalador.
+- Aparece em Configurações > Aplicativos como `ZoneSnap`. Na desinstalação ele
+  pergunta se pode apagar também a configuração; respondendo `Não`, o programa sai
+  e os seus ajustes ficam para uma reinstalação.
+- O executável não é assinado, então o SmartScreen pode avisar que o Windows
+  protegeu o PC: em `Mais informações` há a opção de executar mesmo assim. O
+  código é aberto, MIT, e cada arquivo da release tem o seu SHA-256 no
+  `SHA256SUMS.txt` publicado junto.
+
 
 ## Menu do ícone
 
@@ -309,13 +336,16 @@ Detalhes que valem saber:
 
 ## Iniciar com o Windows
 
-`Win+R`, digite `shell:startup` e ponha um atalho para `zonesnap.exe` na pasta
-que abrir. Não precisa de tarefa agendada nem de administrador.
+O caminho curto é marcar `Iniciar o ZoneSnap junto com o Windows` no instalador.
+Sem instalador, `Win+R`, digite `shell:startup` e ponha um atalho para
+`zonesnap.exe` na pasta que abrir. Não precisa de tarefa agendada nem de
+administrador.
 
 ## Onde ficam os arquivos
 
 | O que | Onde |
 |---|---|
+| Programa instalado | `%LOCALAPPDATA%\Programs\ZoneSnap` |
 | Configuração | `%APPDATA%\ZoneSnap\config.json` |
 | Registro | `%APPDATA%\ZoneSnap\zonesnap.log` |
 | Token e porta da interface | `%APPDATA%\ZoneSnap\ui.token`, `ui.port` |
@@ -324,6 +354,28 @@ que abrir. Não precisa de tarefa agendada nem de administrador.
 
 A pasta de documentos é resolvida pelo Windows, então funciona com OneDrive e com
 o nome traduzido (`Documentos`).
+
+## Privacidade
+
+O ZoneSnap não tem telemetria e não manda nada para fora. A interface é uma página
+servida por ele mesmo em `127.0.0.1`, com o token de `%APPDATA%\ZoneSnap\ui.token`
+no cabeçalho, e só esta máquina a alcança. Não há conta, cadastro, cobrança nem
+e-mail.
+
+O que ele grava fica no seu computador: o `config.json` com os seus ajustes, o
+`zonesnap.log` com o que o programa fez e os arquivos de estado. O log registra o
+processo alvo (`CivilizationV_DX11.exe`, por exemplo), o layout iniciado, os
+atalhos registrados e o endereço da interface com o token. É isso que a vigilância
+usa para reconhecer o jogo; nada disso sai da máquina.
+
+A única conexão que pode existir sem você pedir é a do WebView2, o runtime do Edge
+que desenha a janela: ele tem atualização e diagnóstico próprios, fora do controle
+do ZoneSnap.
+
+Para apagar tudo, saia do programa e apague `%APPDATA%\ZoneSnap` e
+`%LOCALAPPDATA%\ZoneSnap`. O desinstalador faz isso para você quando você responde
+`Sim` à pergunta final.
+
 
 ## Limites conhecidos
 
@@ -354,7 +406,7 @@ o nome traduzido (`Documentos`).
 | Encaixe pelo cliente da janela (Civ V) | sim | não |
 | Regravar o `.ini` do jogo | sim | não |
 | Modo vídeo (navegador sem moldura dentro da zona) | sim | não |
-| Instalação | nenhuma, um `.exe` | instalador do PowerToys |
+| Instalação | instalador próprio de 2,4 MB, opcional, ou um `.exe` solto | instalador do PowerToys |
 | Customização do código | Rust, MIT | C++, MIT |
 
 ## Ícone
@@ -402,6 +454,22 @@ interface precisa ser gerada antes. Se o `cargo` reclamar que não achou
 
 O resultado é `target\release\zonesnap.exe`, um arquivo só, de cerca de 1,3 MB
 (1,23 MB com o ícone embutido).
+
+Para gerar o instalador e os arquivos da release, com o
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) instalado:
+
+```
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\gerar.ps1
+```
+
+Ele compila, lê a versão do `Cargo.toml`, chama o `ISCC` e grava em `dist\` o
+`zonesnap-<versão>-setup.exe`, o `zonesnap-<versão>-portatil.zip` e o
+`SHA256SUMS.txt`. Para publicar os três numa release:
+
+```
+gh release create v<versão> dist/*.exe dist/*.zip dist/SHA256SUMS.txt --title "ZoneSnap <versão>" --notes-file <arquivo>
+```
+
 
 ## Licença
 
