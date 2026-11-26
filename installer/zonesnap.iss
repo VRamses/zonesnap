@@ -50,6 +50,15 @@ VersionInfoDescription=Instalador do ZoneSnap
 VersionInfoProductName={#MinhaApp}
 VersionInfoProductVersion={#MinhaVersao}
 
+; Assinatura: só entra no build quando o gerar.ps1 recebe -Thumbprint, que passa
+; /DAssinar e define a ferramenta por -s na linha de comando do ISCC. O Inno
+; Setup 6 não tem seção [SignTools]: definir a ferramenta só no script dá
+; "Value of [Setup] section directive SignTool is invalid".
+#ifdef Assinar
+SignTool=meu
+SignedUninstaller=yes
+#endif
+
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 

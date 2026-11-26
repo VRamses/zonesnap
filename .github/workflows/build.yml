@@ -1,0 +1,146 @@
+name: build
+
+# Compila o ZoneSnap, monta o instalador e os hashes, e assina pelo SignPath
+# quando o repositório tem o segredo SIGNPATH_API_TOKEN configurado.
+#
+# Sem o segredo, o workflow roda igual e publica os arquivos sem selo, só como
+# artefato do run: nada vai para a release sozinho, quem publica é o mantenedor.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      # segredo lido aqui porque "secrets" não existe em if de step
+      SIGNPATH_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rust estável
+        uses: dtolnay/rust-toolchain@stable
+
+      # ui/dist é ignorado pelo git: a interface entra no exe por include_str!,
+      # então precisa ser gerada antes do cargo.
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Compilar a interface
+        working-directory: ui
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Instalar o Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      # O gerar.ps1 compila, monta o setup, o zip portátil e o SHA256SUMS.txt.
+      - name: Compilar e montar o instalador
+        shell: powershell
+        run: .\installer\gerar.ps1
+
+      - name: Guardar o exe sem selo
+        id: upload-exe
+        uses: actions/upload-artifact@v7
+        with:
+          name: zonesnap-exe-sem-selo
+          if-no-files-found: error
+          path: target\release\zonesnap.exe
+
+      # Primeira assinatura: o exe, antes de entrar no instalador e no zip.
+      - name: Assinar o exe
+        id: sign-exe
+        if: env.SIGNPATH_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ZoneSnap
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: zonesnap
+          github-artifact-id: ${{ steps.upload-exe.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: exe-assinado
+
+      - name: Usar o exe assinado no instalador
+        if: steps.sign-exe.outcome == 'success'
+        shell: powershell
+        run: |
+          $assinado = Get-ChildItem "exe-assinado\*.exe" | Select-Object -First 1
+          if (-not $assinado) { throw 'o SignPath nao devolveu o exe' }
+          Copy-Item $assinado.FullName "target\release\zonesnap.exe" -Force
+
+      - name: Remontar o instalador com o exe assinado
+        if: steps.sign-exe.outcome == 'success'
+        shell: powershell
+        run: .\installer\gerar.ps1 -PularBuild
+
+      - name: Guardar o setup sem selo
+        id: upload-setup
+        uses: actions/upload-artifact@v7
+        with:
+          name: zonesnap-setup-sem-selo
+          if-no-files-found: error
+          path: dist\zonesnap-*-setup.exe
+
+      # Segunda assinatura: o instalador, que já carrega o exe assinado dentro.
+      - name: Assinar o instalador
+        id: sign-setup
+        if: steps.sign-exe.outcome == 'success'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ZoneSnap
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: zonesnap
+          github-artifact-id: ${{ steps.upload-setup.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: setup-assinado
+
+      - name: Conferir os selos e refazer os hashes
+        if: steps.sign-setup.outcome == 'success'
+        shell: powershell
+        run: |
+          $setup = Get-ChildItem "setup-assinado\zonesnap-*-setup.exe" | Select-Object -First 1
+          Copy-Item $setup.FullName "dist\$($setup.Name)" -Force
+          foreach ($arquivo in @($setup.FullName, "target\release\zonesnap.exe")) {
+            $selo = Get-AuthenticodeSignature $arquivo
+            "selo: $($selo.Status) | $($selo.SignerCertificate.Subject) | carimbo: $($selo.TimeStamperCertificate.Subject)"
+            if (-not $selo.SignerCertificate) { throw "$arquivo saiu sem assinatura" }
+          }
+          # aqui só os hashes: recompilar o setup apagaria o que acabou de ser assinado
+          $linhas = Get-ChildItem dist -File | Where-Object { $_.Extension -in @(".exe", ".zip") } |
+            Sort-Object Name | ForEach-Object {
+              $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+              "$h  $($_.Name)"
+            }
+          Set-Content -Path "dist\SHA256SUMS.txt" -Value $linhas -Encoding ascii
+          Get-Content "dist\SHA256SUMS.txt"
+
+      - name: Publicar os arquivos do run
+        uses: actions/upload-artifact@v7
+        with:
+          name: zonesnap-build
+          if-no-files-found: error
+          path: |
+            dist\zonesnap-*-setup.exe
+            dist\zonesnap-*-portatil.zip
+            dist\SHA256SUMS.txt

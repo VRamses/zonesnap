@@ -470,6 +470,40 @@ Ele compila, lê a versão do `Cargo.toml`, chama o `ISCC` e grava em `dist\` o
 gh release create v<versão> dist/*.exe dist/*.zip dist/SHA256SUMS.txt --title "ZoneSnap <versão>" --notes-file <arquivo>
 ```
 
+### Assinatura do executável
+
+Sem certificado o build sai sem selo, como sempre. Com um certificado Authenticode
+instalado na máquina (o selo que o Windows usa para saber quem publicou o
+arquivo), o `gerar.ps1` assina o exe, o instalador e o desinstalador:
+
+```
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File installer\gerar.ps1 -Thumbprint <thumbprint>
+```
+
+O thumbprint sai de `Get-ChildItem Cert:\CurrentUser\My` e também pode vir na
+variável `ZONESNAP_THUMBPRINT`. O `signtool.exe` do Windows SDK precisa estar
+instalado, e o script o procura sozinho. O carimbo de tempo (timestamp) é o da
+DigiCert, então as releases antigas continuam válidas depois que o certificado
+vence.
+
+O Inno Setup 6 não tem seção `[SignTools]`: o `gerar.ps1` passa a ferramenta por
+`-s` na linha de comando do `ISCC` e liga o bloco `#ifdef Assinar` do
+`installer\zonesnap.iss`, que assina o desinstalador também
+(`SignedUninstaller=yes`), o que faz o instalador recusar um desinstalador
+adulterado.
+
+Para assinar sem certificado próprio, existe o workflow
+`.github/workflows/build.yml`, que compila no GitHub Actions e, quando o
+repositório tem o segredo `SIGNPATH_API_TOKEN` e a variável
+`SIGNPATH_ORGANIZATION_ID`, manda o exe e o instalador para o
+[SignPath](https://signpath.org) assinar. Sem esses dois, o workflow roda igual,
+sem assinar, e publica os arquivos como artefato do run: ele não cria release,
+quem publica é o mantenedor.
+
+```
+gh workflow run build.yml
+```
+
 
 ## Licença
 
