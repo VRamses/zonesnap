@@ -400,7 +400,8 @@ O `cargo` embute `ui/dist/index.html` no executável com `include_str!`, então 
 interface precisa ser gerada antes. Se o `cargo` reclamar que não achou
 `../ui/dist/index.html`, é isso que faltou.
 
-O resultado é `target\release\zonesnap.exe`, um arquivo só, de cerca de 1 MB.
+O resultado é `target\release\zonesnap.exe`, um arquivo só, de cerca de 1,3 MB
+(1,23 MB com o ícone embutido).
 
 ## Licença
 
