@@ -69,7 +69,7 @@ Não precisa instalar, não pede administrador e não escreve nada fora de
 | Abrir interface | abre a interface numa janela do próprio programa |
 | Abrir no navegador | abre a mesma interface no navegador padrão |
 | Jogos | prender ou soltar cada perfil, pausar a vigilância, soltar todas as janelas presas |
-| Esconder a moldura do navegador | modo vídeo: tira abas e barra de endereço da janela em foco |
+| Esconder a moldura do navegador | modo vídeo: tira abas e barra de endereço do navegador que está em uso |
 | Abrir config.json | abre a configuração no editor padrão |
 | Recarregar config | relê o arquivo sem reiniciar |
 | Sair | fecha o programa e solta as janelas presas |
@@ -290,8 +290,14 @@ sem moldura neste momento.
 
 Detalhes que valem saber:
 
-- Funciona com navegadores do Chromium: Opera, Chrome, Edge, Brave e Vivaldi. Se
-  a janela em foco não for um deles, o atalho não mexe em nada e explica o motivo.
+- Funciona com navegadores do Chromium: Opera, Chrome, Edge, Brave e Vivaldi. O
+  alvo é o navegador em foco. Quando quem está em foco é a própria interface do
+  ZoneSnap, o menu do ícone ou uma janela que não tem moldura para medir (um app
+  Electron, por exemplo), o comando pega o navegador logo atrás dessa janela e,
+  se não houver, o maior navegador aberto. É isso que faz o botão da interface
+  acertar o navegador que você estava usando.
+- Se nenhum navegador estiver aberto, o atalho não mexe em nada e explica o
+  motivo.
 - Se a janela já estiver em tela cheia do navegador (`F11`), o ZoneSnap não faz
   nada e pede para você apertar `F11` antes.
 - Com o navegador em segundo plano, o comando o traz para a frente para poder

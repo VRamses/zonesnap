@@ -17,13 +17,14 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use windows_sys::Win32::Foundation::{HWND, LPARAM, POINT, RECT};
-use windows_sys::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+use windows_sys::Win32::System::Threading::{AttachThreadInput, GetCurrentProcessId, GetCurrentThreadId};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    EnumChildWindows, GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow,
+    EnumChildWindows, GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindow,
     GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsWindow, IsWindowVisible,
     IsZoomed, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, ShowWindow, WindowFromPoint,
-    GA_ROOT, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSENDCHANGING,
-    SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SW_RESTORE, WS_CAPTION, WS_MAXIMIZE, WS_THICKFRAME,
+    GA_ROOT, GWL_STYLE, GW_HWNDNEXT, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+    SWP_NOSENDCHANGING, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SW_RESTORE, WS_CAPTION,
+    WS_MAXIMIZE, WS_THICKFRAME,
 };
 
 /// O que era a janela antes de entrar no modo vídeo, para devolver igual.
@@ -137,11 +138,12 @@ fn em_modo(hwnd: isize) -> bool {
 }
 
 /// A janela em foco, se for navegador; senão a janela sob o cursor; senão o
-/// maior navegador aberto. O último caso é o que faz o botão da interface
-/// funcionar: quem clica nele põe a própria interface em foco.
+/// navegador logo atrás da janela em foco; senão o maior navegador aberto. Os
+/// dois últimos casos são o que fazem o botão da interface funcionar: quem
+/// clica nele põe a própria interface em foco.
 fn alvo() -> isize {
     let ativa = unsafe { GetForegroundWindow() } as isize;
-    if ativa != 0 && pagina(ativa).is_some() {
+    if serve(ativa) {
         return ativa;
     }
     let mut pt = POINT { x: 0, y: 0 };
@@ -151,15 +153,68 @@ fn alvo() -> isize {
     let sob = unsafe { WindowFromPoint(pt) };
     if !sob.is_null() {
         let raiz = unsafe { GetAncestor(sob, GA_ROOT) } as isize;
-        if raiz != 0 && pagina(raiz).is_some() {
+        if serve(raiz) {
             return raiz;
         }
+    }
+    let vizinho = navegador_abaixo(ativa);
+    if vizinho != 0 {
+        return vizinho;
     }
     let maior = navegador_maior();
     if maior != 0 {
         return maior;
     }
-    ativa
+    // Nenhum navegador aberto: aí vale a janela em foco, se ela tiver página
+    // do Chromium (um app Electron ou uma janela WebView2, por exemplo). Aqui
+    // o pedido é explícito, então não custa tentar.
+    if ativa != 0 && !nossa(ativa) && pagina(ativa).is_some() {
+        return ativa;
+    }
+    0
+}
+
+/// Navegador logo abaixo da janela em foco na ordem Z. É o que faz o botão da
+/// interface acertar o navegador que a pessoa estava usando: ao clicar, a
+/// interface sobe para a frente e o navegador fica logo atrás dela. Melhor que
+/// escolher pelo tamanho, porque duas janelas no mesmo canto têm quase a mesma
+/// área e a escolha ficaria no cara ou coroa.
+fn navegador_abaixo(hwnd: isize) -> isize {
+    let mut atual = hwnd as HWND;
+    for _ in 0..24 {
+        atual = unsafe { GetWindow(atual, GW_HWNDNEXT) };
+        if atual.is_null() {
+            break;
+        }
+        let h = atual as isize;
+        if serve(h) {
+            return h;
+        }
+    }
+    0
+}
+
+/// O ZoneSnap tem janela própria com página do Chromium (a interface), e o
+/// botão dela põe justamente ela em foco. Se ela entrasse como alvo, o modo
+/// vídeo tentaria esconder a moldura da própria interface, que não tem
+/// moldura: ao tirar a legenda a página dela sobe colada no topo da janela e a
+/// medida dá 0 px, então o botão só devolvia "medida estranha". Mesma coisa
+/// vale para qualquer janela WebView2 ou Electron em foco.
+fn nossa(hwnd: isize) -> bool {
+    let mut pid = 0u32;
+    unsafe {
+        GetWindowThreadProcessId(hwnd as HWND, &mut pid);
+    }
+    pid != 0 && pid == unsafe { GetCurrentProcessId() }
+}
+
+/// Serve como alvo do modo vídeo: janela viva, de um navegador de verdade, com
+/// a página desenhada e que não seja do próprio ZoneSnap.
+fn serve(hwnd: isize) -> bool {
+    hwnd != 0
+        && !nossa(hwnd)
+        && eh_navegador(&crate::jogos::processo_da_janela(hwnd))
+        && pagina(hwnd).is_some()
 }
 
 /// Navegadores que usam a mesma janela de página do Chromium.
@@ -225,7 +280,10 @@ fn navegador_maior() -> isize {
 pub fn alternar() -> Result<String, String> {
     let hwnd = alvo();
     if hwnd == 0 {
-        return Err("não achei janela para o modo vídeo".to_string());
+        return Err(
+            "não achei janela de navegador; abra o Opera, o Chrome, o Edge ou o Brave e tente de novo"
+                .to_string(),
+        );
     }
     alternar_janela(hwnd)
 }
@@ -304,6 +362,12 @@ fn entrar(hwnd: isize) -> Result<String, String> {
         if cobre {
             return Err(
                 "essa janela está em tela cheia do navegador (F11); aperte F11 para sair e use o atalho de novo"
+                    .to_string(),
+            );
+        }
+        if (0..10).contains(&dy) {
+            return Err(
+                "essa janela não tem moldura no alto para esconder: a página já começa no topo; o modo vídeo serve para navegador com abas"
                     .to_string(),
             );
         }
