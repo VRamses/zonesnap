@@ -132,7 +132,7 @@ fn registrar_classe() {
             cbClsExtra: 0,
             cbWndExtra: 0,
             hInstance: inst,
-            hIcon: std::ptr::null_mut(),
+            hIcon: crate::icone::grande(),
             hCursor: LoadCursorW(std::ptr::null_mut(), IDC_ARROW),
             // O fundo escuro do tema, para a janela não piscar branca antes de
             // a página carregar.

@@ -357,6 +357,33 @@ o nome traduzido (`Documentos`).
 | Instalação | nenhuma, um `.exe` | instalador do PowerToys |
 | Customização do código | Rust, MIT | C++, MIT |
 
+## Ícone
+
+O ícone é desenhado em código, em `examples/icone.rs`, e gravado em
+`res/zonesnap.ico` com oito tamanhos, de 16 a 256 px. O desenho é refeito em cada
+tamanho em vez de reduzir uma imagem grande: assim o de 16 px, que é o da
+bandeja, sai com contorno de 1 px em vez de borrado.
+
+```
+cargo run --release --example icone
+```
+
+O `build.rs` embute esse `.ico` no executável com o `rc.exe` do Windows SDK, e é
+isso que faz o Explorer, a barra de tarefas e o Alt+Tab mostrarem o ícone do
+ZoneSnap em vez do genérico. A bandeja pede o tamanho pequeno da métrica do
+sistema e a janela pede o grande, ambos do mesmo recurso. Máquina sem o SDK
+compila igual, o programa cai no ícone genérico e o `cargo` só avisa.
+
+Para conferir o desenho sem instalar nada:
+
+```
+cargo run --release --example icone -- --previa
+```
+
+Isso grava `target/previa-icone.png` com os tamanhos pequenos ampliados quatro
+vezes e os tamanhos reais embaixo, sobre o cinza do Windows e sobre o azul da
+barra de tarefas.
+
 ## Recompilar
 
 Precisa de Rust estável e Node 20 ou mais novo.

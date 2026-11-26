@@ -3,6 +3,7 @@
 mod civ;
 mod config;
 mod httpd;
+mod icone;
 mod janela;
 mod jogos;
 mod overlay;
@@ -406,7 +407,7 @@ unsafe fn tray_add(hwnd: HWND) {
     nid.uID = 1;
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAY;
-    nid.hIcon = LoadIconW(std::ptr::null_mut(), IDI_APPLICATION);
+    nid.hIcon = icone::pequeno();
     let tip = tip_text(&state());
     fill_wide(&mut nid.szTip, &tip);
     if Shell_NotifyIconW(NIM_ADD, &nid) == 0 {
