@@ -302,9 +302,10 @@ Detalhes que valem saber:
   nada e pede para você apertar `F11` antes.
 - Com o navegador em segundo plano, o comando o traz para a frente para poder
   medir a página; é o comportamento esperado, já que a intenção é ver o vídeo.
-- Se o programa fechar de repente, a janela pode ficar sem moldura; abrir o
-  ZoneSnap de novo e usar o comando na mesma janela devolve tudo. O encerramento
-  normal pelo menu devolve sozinho.
+- Se o programa fechar de repente, a janela pode ficar sem moldura. O que ela era
+  antes fica guardado em `%APPDATA%\ZoneSnap\video.estado`, então basta abrir o
+  ZoneSnap de novo e usar o comando na mesma janela para a moldura voltar ao
+  lugar. O encerramento normal pelo menu devolve sozinho e apaga esse arquivo.
 
 ## Iniciar com o Windows
 

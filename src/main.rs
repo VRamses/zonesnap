@@ -1524,6 +1524,11 @@ fn main() {
             st.jogos.marcar_abertos(&perfis);
         }
 
+        // Janela que ficou sem moldura na execução anterior volta a ter
+        // memória aqui, para o comando seguinte devolver a moldura em vez de
+        // entrar no modo vídeo outra vez.
+        video::carregar();
+
         match httpd::iniciar() {
             Some((porta, token)) => log(&format!(
                 "interface em http://127.0.0.1:{porta} token={token}"

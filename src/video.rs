@@ -12,6 +12,8 @@
 //!
 //! Veio do `janelas.ahk`, onde rodava com `Ctrl+Alt+V`.
 
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use std::thread::sleep;
 use std::time::Duration;
@@ -20,9 +22,9 @@ use windows_sys::Win32::Foundation::{HWND, LPARAM, POINT, RECT};
 use windows_sys::Win32::System::Threading::{AttachThreadInput, GetCurrentProcessId, GetCurrentThreadId};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     EnumChildWindows, GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindow,
-    GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsWindow, IsWindowVisible,
-    IsZoomed, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, ShowWindow, WindowFromPoint,
-    GA_ROOT, GWL_STYLE, GW_HWNDNEXT, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+    GetWindowLongPtrW, GetWindowRect, GetWindowThreadProcessId, IsIconic, IsWindow,
+    IsWindowVisible, IsZoomed, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos, ShowWindow,
+    WindowFromPoint, GA_ROOT, GWL_STYLE, GW_HWNDNEXT, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
     SWP_NOSENDCHANGING, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SW_RESTORE, WS_CAPTION,
     WS_MAXIMIZE, WS_THICKFRAME,
 };
@@ -42,6 +44,102 @@ static SALVOS: Mutex<Vec<(isize, Salvo)>> = Mutex::new(Vec::new());
 /// Retângulo da página encontrado pela enumeração. A enumeração do Windows não
 /// aceita contexto, então o resultado passa por aqui.
 static PAGINA: Mutex<Option<RECT>> = Mutex::new(None);
+
+/// Onde fica a memória do modo vídeo entre execuções. Sem ela, fechar o
+/// programa (ou um travamento) com a janela sem moldura perdia o retângulo
+/// original: a instância seguinte não sabia de onde a janela tinha saído e o
+/// comando só entrava de novo, alargando a janela alguns pixels a cada toque em
+/// vez de devolver a moldura.
+fn arquivo() -> PathBuf {
+    let base = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
+    let mut p = PathBuf::from(base);
+    p.push("ZoneSnap");
+    p.push("video.estado");
+    p
+}
+
+/// Grava o que é preciso para devolver as janelas numa próxima execução. Lista
+/// vazia apaga o arquivo, para não sobrar memória de janela que já voltou.
+fn salvar() {
+    let texto = match SALVOS.lock() {
+        Ok(v) => v
+            .iter()
+            .map(|(h, s)| {
+                let j = s.janela;
+                format!(
+                    "{h} {} {} {} {} {} {} {}\n",
+                    s.estilo, j.left, j.top, j.right, j.bottom, s.moldura, s.processo
+                )
+            })
+            .collect::<String>(),
+        Err(_) => return,
+    };
+    let caminho = arquivo();
+    if texto.is_empty() {
+        let _ = fs::remove_file(caminho);
+        return;
+    }
+    if let Some(pasta) = caminho.parent() {
+        let _ = fs::create_dir_all(pasta);
+    }
+    let _ = fs::write(caminho, texto);
+}
+
+/// Relê o estado deixado pela execução anterior e mantém só o que ainda faz
+/// sentido: janela viva, do mesmo processo e ainda sem legenda. Assim uma
+/// instância nova consegue trazer a moldura de volta em vez de entrar no modo
+/// vídeo outra vez.
+pub fn carregar() {
+    let texto = match fs::read_to_string(arquivo()) {
+        Ok(t) => t,
+        Err(_) => return,
+    };
+    let mut novos: Vec<(isize, Salvo)> = Vec::new();
+    for linha in texto.lines() {
+        let mut it = linha.splitn(8, ' ');
+        let hwnd = it.next().and_then(|x| x.parse::<isize>().ok());
+        let estilo = it.next().and_then(|x| x.parse::<isize>().ok());
+        let l = it.next().and_then(|x| x.parse::<i32>().ok());
+        let t = it.next().and_then(|x| x.parse::<i32>().ok());
+        let r = it.next().and_then(|x| x.parse::<i32>().ok());
+        let b = it.next().and_then(|x| x.parse::<i32>().ok());
+        let moldura = it.next().and_then(|x| x.parse::<i32>().ok());
+        let processo = it.next().unwrap_or("").trim().to_string();
+        let (Some(hwnd), Some(estilo), Some(l), Some(t), Some(r), Some(b), Some(moldura)) =
+            (hwnd, estilo, l, t, r, b, moldura)
+        else {
+            continue;
+        };
+        if hwnd == 0 || unsafe { IsWindow(hwnd as HWND) } == 0 {
+            continue;
+        }
+        if crate::jogos::processo_da_janela(hwnd) != processo {
+            continue;
+        }
+        let atual = unsafe { GetWindowLongPtrW(hwnd as HWND, GWL_STYLE) };
+        if atual & (WS_CAPTION as isize) != 0 {
+            continue;
+        }
+        novos.push((
+            hwnd,
+            Salvo {
+                estilo,
+                janela: RECT {
+                    left: l,
+                    top: t,
+                    right: r,
+                    bottom: b,
+                },
+                processo,
+                moldura,
+            },
+        ));
+    }
+    if let Ok(mut v) = SALVOS.lock() {
+        *v = novos;
+    }
+    salvar();
+}
 
 fn flag_removida() -> isize {
     WS_CAPTION as isize | WS_THICKFRAME as isize | WS_MAXIMIZE as isize
@@ -209,10 +307,12 @@ fn nossa(hwnd: isize) -> bool {
 }
 
 /// Serve como alvo do modo vídeo: janela viva, de um navegador de verdade, com
-/// a página desenhada e que não seja do próprio ZoneSnap.
+/// a página desenhada e que não seja do próprio ZoneSnap. Minimizada fica de
+/// fora: ela não tem retângulo na tela para medir a moldura.
 fn serve(hwnd: isize) -> bool {
     hwnd != 0
         && !nossa(hwnd)
+        && unsafe { IsIconic(hwnd as HWND) } == 0
         && eh_navegador(&crate::jogos::processo_da_janela(hwnd))
         && pagina(hwnd).is_some()
 }
@@ -402,11 +502,13 @@ fn entrar(hwnd: isize) -> Result<String, String> {
         if let Ok(mut v) = SALVOS.lock() {
             v.retain(|(h, _)| *h != hwnd);
         }
+        salvar();
         if tinha_legenda {
             repintar_estilo(hwnd, estilo);
         }
         return Err("o Windows recusou o movimento".to_string());
     }
+    salvar();
     Ok(format!(
         "moldura escondida ({dy} px); a página ficou em {largura_pagina}x{altura_pagina}"
     ))
@@ -424,6 +526,7 @@ fn sair(hwnd: isize) -> Result<String, String> {
         return Err("essa janela não está no modo vídeo".to_string());
     };
     if unsafe { IsWindow(hwnd as HWND) } == 0 {
+        salvar();
         return Ok("a janela já tinha sido fechada".to_string());
     }
     let j = s.janela;
@@ -431,6 +534,7 @@ fn sair(hwnd: isize) -> Result<String, String> {
     if s.estilo & (WS_CAPTION as isize) != 0 {
         repintar_estilo(hwnd, s.estilo);
     }
+    salvar();
     Ok(format!(
         "moldura de volta ({} px): {} em {}x{}",
         s.moldura,
@@ -459,5 +563,6 @@ pub fn soltar_tudo() -> usize {
         }
         n += 1;
     }
+    salvar();
     n
 }
