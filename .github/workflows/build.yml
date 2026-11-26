@@ -24,7 +24,7 @@ jobs:
       SIGNPATH_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Rust estável
         uses: dtolnay/rust-toolchain@stable
@@ -32,12 +32,12 @@ jobs:
       # ui/dist é ignorado pelo git: a interface entra no exe por include_str!,
       # então precisa ser gerada antes do cargo.
       - name: Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
       - name: pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 9
           run_install: false
