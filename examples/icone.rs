@@ -63,6 +63,16 @@ fn desenhar(t: u32) -> Pixmap {
     let mut p = Paint::default();
     p.anti_alias = true;
 
+    // Em 16 e 20 px a moldura come metade do desenho e o cinza da zona apagada
+    // some no fundo escuro. Nesses tamanhos a folga encolhe e o cinza clareia;
+    // do 24 para cima o desenho é o mesmo, com a cor da interface.
+    let pequeno = t < 24;
+    let apagado = if pequeno {
+        (0x4a, 0x5c, 0x78)
+    } else {
+        APAGADO
+    };
+
     // fundo arredondado, com 1 px de folga nas bordas do ícone
     let m = (0.015 * f).max(0.5);
     let fundo = rounded_rect(m, m, f - m, f - m, 0.21 * f).expect("fundo");
@@ -70,21 +80,21 @@ fn desenhar(t: u32) -> Pixmap {
     pm.fill_path(&fundo, &p, FillRule::Winding, Transform::identity(), None);
 
     // a tela, clara, que vira a moldura das zonas
-    let a = 0.18 * f;
+    let a = (if pequeno { 0.13 } else { 0.18 }) * f;
     let b = f - a;
     let tela = rounded_rect(a, a, b, b, 0.07 * f).expect("tela");
     cor(&mut p, CLARO, 255);
     pm.fill_path(&tela, &p, FillRule::Winding, Transform::identity(), None);
 
     // duas zonas: 42% e o resto, separadas pela folga da moldura
-    let g = 0.055 * f;
+    let g = (if pequeno { 0.05 } else { 0.055 }) * f;
     let xm = a + 0.42 * (b - a);
     let r = 0.035 * f;
     let esquerda = rounded_rect(a + g, a + g, xm - g * 0.5, b - g, r).expect("zona esquerda");
     cor(&mut p, ACENTO, 255);
     pm.fill_path(&esquerda, &p, FillRule::Winding, Transform::identity(), None);
     let direita = rounded_rect(xm + g * 0.5, a + g, b - g, b - g, r).expect("zona direita");
-    cor(&mut p, APAGADO, 255);
+    cor(&mut p, apagado, 255);
     pm.fill_path(&direita, &p, FillRule::Winding, Transform::identity(), None);
 
     pm
